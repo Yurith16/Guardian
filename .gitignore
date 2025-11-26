@@ -1,0 +1,105 @@
+# =============================================
+# 📁 DATOS Y CONFIGURACIÓN SENSIBLE
+# =============================================
+
+# =============================================
+# 📦 SESIONES
+# =============================================
+sessions/
+*json
+creds.json
+sessions/
+database/grupos.db
+
+
+# =============================================
+# 🚀 NODE.JS Y DEPENDENCIAS
+# =============================================
+
+# Dependencias de Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+
+# Cache de package managers
+.npmrc
+.yarnrc
+temp/
+*.mp4
+*.mp3
+node_modules/
+*.log
+.env
+.DS_Store
+
+# =============================================
+# 📊 ARCHIVOS TEMPORALES Y LOGS
+# =============================================
+
+# Logs
+*.log
+logs/
+debug.log
+
+# Archivos temporales
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Código QR y archivos de conexión
+qr-code.txt
+qr.png
+qr.jpg
+pm2.txt
+
+# =============================================
+# 🔧 ARCHIVOS DE CONFIGURACIÓN LOCAL
+# =============================================
+
+# Configuraciones locales (no subir)
+config.local.json
+.env
+.env.local
+.env.production
+.env.development
+
+# Archivos de IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =============================================
+# 🗄️ BACKUPS Y ARCHIVOS PESADOS
+# =============================================
+
+# Backups automáticos
+backup/
+*.backup
+*.bak
+
+# Archivos de medios (si no quieres subirlos)
+media/avatars/
+
+# =============================================
+# 📦 BUILD Y DISTRIBUCIÓN
+# =============================================
+
+# Builds y distribuciones
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Coverage reports
+coverage/
+.nyc_output/
+node_modules
+temp/
+temp/
+*.mp4
