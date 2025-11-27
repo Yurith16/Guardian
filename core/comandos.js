@@ -10,6 +10,20 @@ class GestorComandos {
         this.contadorComandos = 0;
         this.pluginsCargados = 0;
         this.prefix = Config.bot.prefix || '.';
+        this.gestorGrupos = null;
+        this.initGestorGrupos();
+    }
+
+    // Inicializar gestor de grupos
+    initGestorGrupos() {
+        try {
+            const GestorGrupos = require('../database/gestorGrupos');
+            this.gestorGrupos = new GestorGrupos();
+            Logger.info('✅ Gestor de Grupos JSON inicializado');
+        } catch (error) {
+            Logger.warn('⚠️ No se pudo inicializar Gestor de Grupos:', error.message);
+            this.gestorGrupos = null;
+        }
     }
 
     async cargarComandos() {
@@ -157,6 +171,10 @@ class GestorComandos {
             const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
             Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
 
+            // ========== CONTADOR DE MENSAJES ==========
+            await this.contarMensaje(mensaje);
+            // ==========================================
+
             // Solo procesar si es un comando (empieza con prefix)
             if (!texto.startsWith(this.prefix)) {
                 return;
@@ -260,6 +278,24 @@ class GestorComandos {
         }
     }
 
+    // ========== CONTADOR DE MENSAJES ==========
+    async contarMensaje(mensaje) {
+        try {
+            if (!this.gestorGrupos) return;
+
+            const jid = mensaje.key.remoteJid;
+            const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
+
+            // Solo contar mensajes en grupos
+            if (this.esGrupo(mensaje)) {
+                await this.gestorGrupos.registrarMensaje(jid, remitenteCompleto);
+                Logger.debug(`📊 Mensaje contado para ${remitenteCompleto} en ${jid}`);
+            }
+        } catch (error) {
+            Logger.debug('Error contando mensaje:', error.message);
+        }
+    }
+
     // ========== SISTEMA DE VERIFICACIÓN DE PERMISOS ==========
 
     tienePermisosOwner(numero, remitenteCompleto) {
@@ -350,6 +386,7 @@ class GestorComandos {
             });
         }
 
+
         console.log('\n📊 RESUMEN DE COMANDOS CARGADOS:');
         console.log('═'.repeat(60));
 
@@ -431,6 +468,11 @@ class GestorComandos {
         }
 
         return comandosFiltrados;
+    }
+
+    // Método para obtener el gestor de grupos (para otros comandos)
+    obtenerGestorGrupos() {
+        return this.gestorGrupos;
     }
 }
 

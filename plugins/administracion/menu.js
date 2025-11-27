@@ -171,10 +171,10 @@ function crearMenuError(mensaje) {
 // Exportar el módulo
 module.exports = {
     command: ['menu', 'help', 'comandos'],
-    description: 'Mostrar menú de comandos disponibles',
-    isOwner: false,
-    isGroup: true,
-    isPrivate: true,
+        description: 'Mostrar menú de comandos disponibles',
+        isOwner: false,
+        isGroup: true,      // ✅ Grupos
+        isPrivate: true,    // ✅ Privado también
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

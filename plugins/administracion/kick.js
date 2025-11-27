@@ -2,11 +2,11 @@ const Logger = require('../../utils/logger');
 
 module.exports = {
     command: ['kick', 'expulsar'],
-    description: 'Expulsar usuario del grupo',
-    isOwner: true,
-    isAdmin: true,
-    isGroup: true,
-    isPrivate: false,
+        description: 'Expulsar usuario del grupo',
+        isOwner: false,
+        isAdmin: true,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

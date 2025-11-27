@@ -2,11 +2,10 @@ const Logger = require('../../utils/logger');
 
 module.exports = {
     command: ['ping', 'latencia'],
-    description: 'Ver latencia del bot',
-    isOwner: true,
-    isAdmin: true,
-    isGroup: true,
-    isPrivate: true,
+        description: 'Ver latencia del bot',
+        isOwner: false,
+        isGroup: true,      // ✅ Grupos
+        isPrivate: true,  
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

@@ -2,11 +2,11 @@ const Logger = require('../../utils/logger');
 
 module.exports = {
     command: ['admins', 'administradores'],
-    description: 'Listar administradores del grupo',
-    isOwner: false,
-    isAdmin: false,
-    isGroup: true,
-    isPrivate: false,
+        description: 'Listar administradores del grupo',
+        isOwner: false,
+        isAdmin: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

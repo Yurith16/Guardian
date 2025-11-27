@@ -2,11 +2,10 @@ const Logger = require('../../utils/logger');
 
 module.exports = {
     command: ['info', 'usuario'],
-    description: 'Información de usuario',
-    isOwner: false,
-        isAdmin: false,
-        isGroup: true,
-        isPrivate: false,
+        description: 'Información de usuario',
+        isOwner: false,
+        isGroup: true,      // ✅ Grupos
+        isPrivate: true, 
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

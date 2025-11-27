@@ -2,7 +2,10 @@ const Logger = require('../../utils/logger');
 
 module.exports = {
     command: ['prueba', 'test'],
-    description: 'Comando de prueba para administración',
+        description: 'Comando de prueba',
+        isOwner: false,
+        isGroup: true,      // ✅ Grupos
+        isPrivate: true, 
 
     async execute(sock, message, args) {
         try {

@@ -19,11 +19,11 @@ function formatearTiempo(ms) {
 }
 
 module.exports = {
-    command: ['estado', 'stats', 'info'],
-    description: 'Ver estado y estadísticas del bot',
-    isOwner: true,
-    isGroup: true,
-    isPrivate: true,
+    command: ['estado', 'stats', 'infobot'],
+        description: 'Ver estado del bot',
+        isOwner: true,
+        isGroup: true,      // ✅ Grupos
+        isPrivate: true, 
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

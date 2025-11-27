@@ -1,37 +1,36 @@
 const Logger = require('../../utils/logger');
 
 module.exports = {
-    command: ['kick', 'expulsar'],
-    description: 'Expulsar usuario del grupo',
-    isOwner: false,
-    isAdmin: true,
-    isGroup: true,
-    isPrivate: false,
+    command: ['ban', 'banear'],
+        description: 'Banear usuario del grupo',
+        isOwner: false,
+        isAdmin: true,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false, 
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
 
         try {
-            // Verificar si hay mención
             if (!message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ *Menciona al usuario*\nEj: .kick @usuario' 
+                    text: '❌ *Menciona al usuario*\nEj: .ban @usuario' 
                 }, { quoted: message });
             }
 
             const userJid = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
 
-            // Expulsar usuario
+            // Banear usuario
             await sock.groupParticipantsUpdate(jid, [userJid], 'remove');
 
             await sock.sendMessage(jid, { 
-                text: '👢 *Usuario expulsado*' 
+                text: '🚫 *Usuario baneado*' 
             }, { quoted: message });
 
         } catch (error) {
-            Logger.error('Error en kick:', error);
+            Logger.error('Error en ban:', error);
             await sock.sendMessage(jid, { 
-                text: '❌ Error al expulsar' 
+                text: '❌ Error al banear' 
             }, { quoted: message });
         }
     }
