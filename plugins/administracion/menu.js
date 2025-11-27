@@ -207,14 +207,14 @@ function crearMenuError(mensaje) {
 
 // Sistema de imágenes para el menú
 const menuImages = [
-    "https://i.imgur.com/3Q1W7yA.jpg",
-    "https://i.imgur.com/5m6v7zB.jpg", 
-    "https://i.imgur.com/8n9c0xD.jpg"
+    "",
+    "", 
+    ""
 ];
 
 const backupImages = [
-    "https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=500&q=80",
-    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&q=80"
+    "",
+    ""
 ];
 
 function getRandomMenuImage() {

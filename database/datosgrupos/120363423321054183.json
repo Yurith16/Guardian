@@ -3,7 +3,7 @@
   "nombre": "Guardian Bot",
   "descripcion": "Grupo oficial de Guardian Bot",
   "fecha_creacion": "2025-11-27T01:50:00.972Z",
-  "fecha_actualizacion": "2025-11-27T20:03:13.125Z",
+  "fecha_actualizacion": "2025-11-27T20:56:37.111Z",
   "configuraciones": {
     "antilink": true,
     "antibots": true,
@@ -14,16 +14,16 @@
     "welcomeMessage": "hola @user Bienvenido al grupo %group%"
   },
   "estadisticas": {
-    "total_mensajes": 623,
+    "total_mensajes": 629,
     "total_usuarios": 3,
-    "ultima_actividad": "2025-11-27T20:03:13.125Z"
+    "ultima_actividad": "2025-11-27T20:56:37.111Z"
   },
   "usuarios": {
     "20015168381136@lid": {
       "numero": "20015168381136",
-      "mensajes_totales": 474,
+      "mensajes_totales": 480,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T20:03:13.125Z",
+      "ultimo_mensaje": "2025-11-27T20:56:37.111Z",
       "primer_mensaje": "2025-11-27T01:50:00.974Z",
       "es_admin": false
     },

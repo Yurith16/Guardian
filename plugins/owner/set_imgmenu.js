@@ -1,7 +1,7 @@
 const Logger = require('../../utils/logger');
-const Config = require('../../config/bot.json');
 const fs = require('fs');
 const path = require('path');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['imgmenu', 'setmenuimg', 'cambiarmenu'],
@@ -12,13 +12,27 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
         const url = args[0];
+
+        // ✅ VERIFICACIÓN DE PERMISOS
+        if (!ManejadorPropietarios.esOwner(sender)) {
+            Logger.warn(`🚫 Intento de uso no autorizado de .imgmenu por: ${sender}`);
+            return await sock.sendMessage(jid, { 
+                text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+            }, { quoted: message });
+        }
 
         if (!url) {
             await sock.sendMessage(jid, {
-                text: '❌ *Ingresa una URL de imagen*\n\nEjemplo: *imgmenu https://ejemplo.com/imagen.jpg*'
+                text: '❌ *Ingresa una URL de imagen*\n\nEjemplo: *imgmenu https://ejemplo.com/imagen.jpg*\n\n💡 *Comando adicional:*\n.imgmenu reset - Restablecer imagen por defecto'
             }, { quoted: message });
             return;
+        }
+
+        // Opción para resetear
+        if (url.toLowerCase() === 'reset') {
+            return await this.resetearImagen(sock, message);
         }
 
         // Validar que sea una URL válida
@@ -46,34 +60,34 @@ module.exports = {
                 throw new Error('La URL no apunta a una imagen válida');
             }
 
-            // Actualizar la configuración del menú
-            const menuConfigPath = path.join(__dirname, 'menu.js');
-            let menuCode = fs.readFileSync(menuConfigPath, 'utf8');
+            // ✅ CREAR ARCHIVO DE CONFIGURACIÓN SEPARADO
+            const configDir = path.join(__dirname, '../../config');
+            const menuImageConfigPath = path.join(configDir, 'menu_images.json');
 
-            // Reemplazar todas las URLs existentes por la nueva URL única
-            menuCode = menuCode.replace(
-                /const menuImages = \[[^\]]*\];/,
-                `const menuImages = [\n    "${url}"\n];`
-            );
+            // Crear configuración
+            const menuConfig = {
+                customImage: url,
+                lastUpdated: new Date().toISOString(),
+                updatedBy: sender
+            };
 
-            // Eliminar backupImages para usar solo una imagen
-            menuCode = menuCode.replace(
-                /const backupImages = \[[^\]]*\];/,
-                `const backupImages = [\n    "${url}"\n];`
-            );
+            // Asegurar que existe la carpeta config
+            if (!fs.existsSync(configDir)) {
+                fs.mkdirSync(configDir, { recursive: true });
+            }
 
-            // Sobrescribir el archivo del menú
-            fs.writeFileSync(menuConfigPath, menuCode, 'utf8');
+            // Guardar configuración
+            fs.writeFileSync(menuImageConfigPath, JSON.stringify(menuConfig, null, 2));
 
             await sock.sendMessage(jid, {
                 react: { text: "✅", key: message.key }
             });
 
             await sock.sendMessage(jid, {
-                text: `✅ *Imagen del menú actualizada*\n\nNueva imagen: ${url}\n\nEl cambio se aplicará en el próximo uso del menú.`
+                text: `✅ *Imagen del menú actualizada*\n\n🖼️ *Nueva imagen:* ${url}\n⏰ *Fecha:* ${new Date().toLocaleString()}\n👤 *Configurado por:* ${sender.split('@')[0]}\n\nEl cambio se aplicará en el próximo uso del menú.`
             }, { quoted: message });
 
-            Logger.info(`🖼️ Imagen del menú cambiada por owner: ${url}`);
+            Logger.info(`🖼️ Imagen del menú cambiada por ${sender}: ${url}`);
 
         } catch (error) {
             console.error('Error en comando imgmenu:', error);
@@ -88,12 +102,36 @@ module.exports = {
                 errorMsg = '❌ *No se puede acceder a la imagen*\n\nVerifica que la URL sea pública y accesible.';
             } else if (error.message.includes('no apunta a una imagen')) {
                 errorMsg = '❌ *URL no es una imagen válida*\n\nLa URL debe apuntar a una imagen (JPG, PNG, etc.).';
-            } else if (error.message.includes('ENOENT')) {
-                errorMsg = '❌ *Error de archivo*\n\nNo se pudo modificar la configuración del menú.';
             }
 
             await sock.sendMessage(jid, {
                 text: errorMsg
+            }, { quoted: message });
+        }
+    },
+
+    async resetearImagen(sock, message) {
+        const jid = message.key.remoteJid;
+        const configPath = path.join(__dirname, '../../config/menu_images.json');
+
+        try {
+            if (fs.existsSync(configPath)) {
+                fs.unlinkSync(configPath);
+            }
+
+            await sock.sendMessage(jid, {
+                react: { text: "🔄", key: message.key }
+            });
+
+            await sock.sendMessage(jid, {
+                text: '✅ *Imagen del menú restablecida*\n\nSe usarán las imágenes por defecto en el próximo menú.'
+            }, { quoted: message });
+
+            Logger.info('🖼️ Imagen del menú restablecida por defecto');
+        } catch (error) {
+            Logger.error('Error resetando imagen:', error);
+            await sock.sendMessage(jid, {
+                text: '❌ Error al restablecer la imagen.'
             }, { quoted: message });
         }
     }

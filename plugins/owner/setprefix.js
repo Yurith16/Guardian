@@ -1,6 +1,7 @@
 const Logger = require('../../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['setprefix', 'cambiarprefijo'],
@@ -14,24 +15,12 @@ module.exports = {
         const sender = message.key.participant || message.key.remoteJid;
 
         try {
-            // Verificar si es el owner global
-            const Config = require('../../config/bot.json');
-            const globalOwner = Config.propietarios.global;
-            const senderNumber = sender.split('@')[0];
-            const senderId = sender;
-
-            if (typeof globalOwner === 'object') {
-                if (senderNumber !== globalOwner.numero && senderId !== globalOwner.id) {
-                    return await sock.sendMessage(jid, { 
-                        text: '❌ Solo el owner global puede usar este comando.' 
-                    }, { quoted: message });
-                }
-            } else {
-                if (senderNumber !== globalOwner) {
-                    return await sock.sendMessage(jid, { 
-                        text: '❌ Solo el owner global puede usar este comando.' 
-                    }, { quoted: message });
-                }
+            // ✅ VERIFICACIÓN DE PERMISOS - Cualquier owner puede cambiar el prefix
+            if (!ManejadorPropietarios.esOwner(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .setprefix por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+                }, { quoted: message });
             }
 
             // Verificar si se proporcionó nuevo prefijo
@@ -64,11 +53,11 @@ module.exports = {
                 }, { quoted: message });
             }
 
-            const prefijoAnterior = Config.bot.prefix;
-
-            // Cargar y actualizar configuración
+            // Cargar configuración actual
             const configPath = path.join(__dirname, '../../config/bot.json');
             const configData = JSON.parse(await fs.readFile(configPath, 'utf8'));
+
+            const prefijoAnterior = configData.bot.prefix;
 
             // Actualizar prefijo
             configData.bot.prefix = nuevoPrefijo;

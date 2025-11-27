@@ -1,4 +1,5 @@
 const Logger = require('../../utils/logger');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['stop', 'detener', 'parar', 'apagar', 'shutdown'],
@@ -9,14 +10,23 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
 
         try {
+            // ✅ VERIFICACIÓN DE PERMISOS
+            if (!ManejadorPropietarios.esOwner(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .stop por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+                }, { quoted: message });
+            }
+
             // Enviar mensaje de confirmación
             await sock.sendMessage(jid, { 
                 text: '🛑 *Apagando Guardian Bot...*\n\n¡Hasta pronto! 👋' 
             }, { quoted: message });
 
-            Logger.info(`🛑 Apagado solicitado por ${jid}`);
+            Logger.info(`🛑 Apagado solicitado por ${sender}`);
 
             // Cerrar conexión limpiamente
             if (sock && sock.ws) {

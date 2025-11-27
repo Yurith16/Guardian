@@ -1,10 +1,11 @@
 const Logger = require('../../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['setowner', 'addowner'],
-    description: 'Cambiar o añadir propietario (Solo Owner Global)',
+    description: 'Añadir nuevo propietario al bot (Solo Owner Global)',
     isOwner: true,
     isGroup: true,
     isPrivate: true,
@@ -14,30 +15,18 @@ module.exports = {
         const sender = message.key.participant || message.key.remoteJid;
 
         try {
-            // Verificar si es el owner global
-            const Config = require('../../config/bot.json');
-            const globalOwner = Config.propietarios.global;
-            const senderNumber = sender.split('@')[0];
-            const senderId = sender;
-
-            if (typeof globalOwner === 'object') {
-                if (senderNumber !== globalOwner.numero && senderId !== globalOwner.id) {
-                    return await sock.sendMessage(jid, { 
-                        text: '❌ Solo el owner global puede usar este comando.' 
-                    }, { quoted: message });
-                }
-            } else {
-                if (senderNumber !== globalOwner) {
-                    return await sock.sendMessage(jid, { 
-                        text: '❌ Solo el owner global puede usar este comando.' 
-                    }, { quoted: message });
-                }
+            // ✅ VERIFICACIÓN DE PERMISOS - Solo owners globales pueden agregar owners
+            if (!ManejadorPropietarios.esPropietarioGlobal(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .setowner por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios globales pueden agregar nuevos owners.' 
+                }, { quoted: message });
             }
 
             // Verificar si se proporcionaron ambos parámetros
             if (args.length < 2) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ *Uso:* .setowner <número> <id>\n*Ejemplo:* .setowner 50499001122 20015168381136@lid\n\n💡 *Para obtener el ID:*\nEl usuario debe usar .myid en el grupo' 
+                    text: '❌ *Uso:* .setowner <número> <id>\n*Ejemplo:* .setowner 50499001122 50499001122@s.whatsapp.net\n\n💡 *Para obtener el ID:*\nEl usuario debe usar .myid en el grupo' 
                 }, { quoted: message });
             }
 
@@ -52,9 +41,16 @@ module.exports = {
             }
 
             // Validar formato del ID
-            if (!id.includes('@')) {
+            if (!id.includes('@s.whatsapp.net') && !id.includes('@lid')) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ *Formato inválido del ID.*\nDebe incluir @lid o @s.whatsapp.net\n*Ejemplo:* 20015168381136@lid' 
+                    text: '❌ *Formato inválido del ID.*\nDebe incluir @s.whatsapp.net o @lid\n*Ejemplo:* 50499001122@s.whatsapp.net' 
+                }, { quoted: message });
+            }
+
+            // Verificar si ya es owner
+            if (ManejadorPropietarios.esOwner(numero) || ManejadorPropietarios.esOwner(id)) {
+                return await sock.sendMessage(jid, { 
+                    text: '✅ Este usuario ya es propietario del bot.' 
                 }, { quoted: message });
             }
 
@@ -67,24 +63,35 @@ module.exports = {
             const configPath = path.join(__dirname, '../../config/bot.json');
             const configData = JSON.parse(await fs.readFile(configPath, 'utf8'));
 
-            // Actualizar owner global
-            configData.propietarios.global = nuevoOwner;
+            // Verificar y crear estructura si no existe
+            if (!configData.propietarios) {
+                configData.propietarios = {};
+            }
+            if (!Array.isArray(configData.propietarios.global)) {
+                configData.propietarios.global = [];
+            }
+
+            // Agregar nuevo owner al array
+            configData.propietarios.global.push(nuevoOwner);
 
             // Guardar cambios
             await fs.writeFile(configPath, JSON.stringify(configData, null, 2));
 
+            // Recargar el manejador de propietarios
+            ManejadorPropietarios.recargar();
+
             await sock.sendMessage(jid, { 
-                text: `✅ *Owner actualizado*\n\n📱 Número: ${numero}\n🆔 ID: ${id}\n\n⚠️ *Reinicia el bot para aplicar los cambios*` 
+                text: `✅ *Nuevo Owner Agregado*\n\n📱 *Número:* ${numero}\n🆔 *ID:* ${id}\n👥 *Total de Owners:* ${configData.propietarios.global.length}\n\n⚠️ *Los cambios se aplicaron automáticamente*` 
             }, { quoted: message });
 
-            Logger.info(`✅ Owner cambiado a ${numero} (${id}) por ${sender}`);
+            Logger.info(`✅ Nuevo owner agregado: ${numero} (${id}) por ${sender}`);
 
         } catch (error) {
             Logger.error('Error en comando setowner:', error);
 
             try {
                 await sock.sendMessage(jid, { 
-                    text: '❌ Error al cambiar el owner.' 
+                    text: '❌ Error al agregar el owner.' 
                 }, { quoted: message });
             } catch (sendError) {
                 Logger.error('Error enviando mensaje:', sendError);

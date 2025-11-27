@@ -1,6 +1,7 @@
 const Logger = require('../../utils/logger');
 const fs = require('fs').promises;
 const path = require('path');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['unban', 'desbloquear'],
@@ -11,8 +12,17 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
 
         try {
+            // ✅ VERIFICACIÓN DE PERMISOS
+            if (!ManejadorPropietarios.esOwner(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .unban por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+                }, { quoted: message });
+            }
+
             let userJid;
 
             // Verificar si es respuesta a un mensaje
@@ -73,7 +83,7 @@ module.exports = {
                 text: `✅ *Usuario desbaneado*\n📱 ${userNumber}\n\n✅ Ahora puede usar el bot nuevamente.` 
             }, { quoted: message });
 
-            Logger.info(`✅ Usuario ${userJid} desbaneado por ${jid}`);
+            Logger.info(`✅ Usuario ${userJid} desbaneado por ${sender}`);
 
         } catch (error) {
             Logger.error('Error en comando unban:', error);
