@@ -26,6 +26,34 @@ class GestorComandos {
         }
     }
 
+    // Cargar lista negra
+    async cargarBlacklist() {
+        try {
+            const blacklistPath = path.join(__dirname, '../config/blacklist.json');
+            if (!fs.existsSync(blacklistPath)) {
+                // Crear archivo si no existe
+                const blacklistData = { bannedUsers: [] };
+                fs.writeFileSync(blacklistPath, JSON.stringify(blacklistData, null, 2));
+                return blacklistData;
+            }
+            return JSON.parse(fs.readFileSync(blacklistPath, 'utf8'));
+        } catch (error) {
+            Logger.warn('⚠️ Error cargando blacklist:', error.message);
+            return { bannedUsers: [] };
+        }
+    }
+
+    // Verificar si usuario está baneado
+    async estaUsuarioBaneado(remitenteCompleto) {
+        try {
+            const blacklistData = await this.cargarBlacklist();
+            return blacklistData.bannedUsers.includes(remitenteCompleto);
+        } catch (error) {
+            Logger.debug('Error verificando blacklist:', error.message);
+            return false;
+        }
+    }
+
     async cargarComandos() {
         try {
             const mensajeCargando = Config.mensajes?.comandos?.cargando || "🔄 Cargando comandos...";
@@ -165,10 +193,17 @@ class GestorComandos {
     async ejecutarComando(socket, mensaje) {
         try {
             const texto = this.obtenerTexto(mensaje);
+            const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
+
+            // ========== VERIFICACIÓN DE LISTA NEGRA ==========
+            if (await this.estaUsuarioBaneado(remitenteCompleto)) {
+                Logger.info(`🚫 Usuario baneado intentó usar comando: ${remitenteCompleto}`);
+                return; // No procesar el mensaje
+            }
+            // =================================================
 
             // DEBUG: Log del mensaje recibido
             const remitente = this.obtenerRemitente(mensaje);
-            const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
             Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
 
             // ========== CONTADOR DE MENSAJES ==========
@@ -385,7 +420,6 @@ class GestorComandos {
                 isAdmin: comando.isAdmin
             });
         }
-
 
         console.log('\n📊 RESUMEN DE COMANDOS CARGADOS:');
         console.log('═'.repeat(60));
