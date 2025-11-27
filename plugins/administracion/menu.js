@@ -3,79 +3,108 @@ const Config = require('../../config/bot.json');
 const fs = require('fs');
 const path = require('path');
 
-// Funciones auxiliares fuera del module.exports
-async function generarMenuCompleto() {
-    Logger.info('🔄 Iniciando generación de menú completo');
+// Diseños personalizados
+global.cmenuh = '╭━━〔 ';
+global.cmenub = '┃ ';
+global.cmenuf = '╰━━━━━━━━━━━━━━━━━━━━╯';
+global.cmenua = '┃ ';
+
+// Función para obtener estadísticas del bot
+function obtenerEstadisticasBot() {
+    try {
+        const bot = require('../../main');
+        const metrics = bot.obtenerMetrics();
+        return {
+            mensajesProcesados: metrics.mensajesProcesados || 0,
+            comandosEjecutados: metrics.comandosEjecutados || 0,
+            inicio: metrics.inicio || new Date()
+        };
+    } catch (error) {
+        return {
+            mensajesProcesados: 0,
+            comandosEjecutados: 0,
+            inicio: new Date()
+        };
+    }
+}
+
+// Función para formatear tiempo
+function formatearTiempo(ms) {
+    const segundos = Math.floor(ms / 1000);
+    const dias = Math.floor(segundos / (24 * 60 * 60));
+    const horas = Math.floor((segundos % (24 * 60 * 60)) / (60 * 60));
+    const minutos = Math.floor((segundos % (60 * 60)) / 60);
+    const segs = segundos % 60;
+
+    const partes = [];
+    if (dias > 0) partes.push(`${dias}d`);
+    if (horas > 0) partes.push(`${horas}h`);
+    if (minutos > 0) partes.push(`${minutos}m`);
+    if (segs > 0 || partes.length === 0) partes.push(`${segs}s`);
+
+    return partes.join(' ');
+}
+
+// Función para convertir texto a negrita monoespaciada
+function toBoldMono(text) {
+    const mapping = {
+        A: "𝗔", B: "𝗕", C: "𝗖", D: "𝗗", E: "𝗘", F: "𝗙", G: "𝗚", H: "𝗛", I: "𝗜", J: "𝗝", 
+        K: "𝗞", L: "𝗟", M: "𝗠", N: "𝗡", O: "𝗢", P: "𝗣", Q: "𝗤", R: "𝗥", S: "𝗦", T: "𝗧",
+        U: "𝗨", V: "𝗩", W: "𝗪", X: "𝗫", Y: "𝗬", Z: "𝗭",
+        a: "𝗮", b: "𝗯", c: "𝗰", d: "𝗱", e: "𝗲", f: "𝗳", g: "𝗴", h: "𝗵", i: "𝗶", j: "𝗷",
+        k: "𝗸", l: "𝗹", m: "𝗺", n: "𝗻", o: "𝗼", p: "𝗽", q: "𝗾", r: "𝗿", s: "𝘀", t: "𝘁",
+        u: "𝘂", v: "𝘃", w: "𝘄", x: "𝘅", y: "𝘆", z: "𝘇",
+        0: "𝟬", 1: "𝟭", 2: "𝟮", 3: "𝟯", 4: "𝟰", 5: "𝟱", 6: "𝟲", 7: "𝟳", 8: "𝟴", 9: "𝟵",
+        " ": " ",
+    };
+    return text.split('').map(char => mapping[char] || char).join('');
+}
+
+// Función para generar el menú completo
+async function generarMenuCompleto(sender) {
     const comandosPorCategoria = {};
     const pluginsPath = path.join(__dirname, '../..', 'plugins');
 
-    Logger.info(`📂 Ruta de plugins: ${pluginsPath}`);
-
-    // Verificar si la carpeta plugins existe
     if (!fs.existsSync(pluginsPath)) {
-        Logger.error('🚨 La carpeta plugins NO existe');
         return crearMenuError('La carpeta plugins/ no existe');
     }
 
-    Logger.info('✅ Carpeta plugins encontrada, explorando...');
     await explorarPlugins(pluginsPath, comandosPorCategoria);
-
-    Logger.info(`📊 Categorías encontradas: ${Object.keys(comandosPorCategoria).length}`);
-    for (const [categoria, comandos] of Object.entries(comandosPorCategoria)) {
-        Logger.info(`   📂 ${categoria}: ${comandos.length} comandos`);
-    }
-
-    return formatearMenu(comandosPorCategoria);
+    return formatearMenu(comandosPorCategoria, sender);
 }
 
 async function explorarPlugins(carpetaPath, comandosPorCategoria) {
-    Logger.info(`🔍 Explorando carpeta: ${carpetaPath}`);
-
-    if (!fs.existsSync(carpetaPath)) {
-        Logger.warn(`⚠️ Carpeta no existe: ${carpetaPath}`);
-        return;
-    }
+    if (!fs.existsSync(carpetaPath)) return;
 
     try {
         const items = fs.readdirSync(carpetaPath);
-        Logger.info(`📁 Contenido de ${path.basename(carpetaPath)}: ${items.join(', ')}`);
 
         for (const item of items) {
             const itemPath = path.join(carpetaPath, item);
-            Logger.info(`   📄 Procesando: ${item}`);
 
             try {
                 const stat = fs.statSync(itemPath);
 
                 if (stat.isDirectory() && !item.startsWith('_')) {
-                    Logger.info(`   📂 Es carpeta: ${item}`);
                     await explorarPlugins(itemPath, comandosPorCategoria);
                 } else if (stat.isFile() && item.endsWith('.js') && !item.startsWith('_')) {
-                    Logger.info(`   🔧 Es archivo plugin: ${item}`);
                     await procesarPlugin(itemPath, comandosPorCategoria);
-                } else {
-                    Logger.info(`   ❌ Ignorado: ${item} (no cumple criterios)`);
                 }
             } catch (error) {
-                Logger.error(`   💥 Error procesando ${item}:`, error.message);
+                Logger.debug(`Error procesando ${item}:`, error.message);
             }
         }
     } catch (error) {
-        Logger.error(`💥 Error leyendo carpeta ${carpetaPath}:`, error);
+        Logger.error(`Error leyendo carpeta ${carpetaPath}:`, error);
     }
 }
 
 async function procesarPlugin(pluginPath, comandosPorCategoria) {
     try {
-        Logger.info(`   📦 Cargando plugin: ${path.basename(pluginPath)}`);
-
         delete require.cache[require.resolve(pluginPath)];
         const plugin = require(pluginPath);
 
-        Logger.info(`   ✅ Plugin cargado: ${path.basename(pluginPath)}`);
-
         if (!plugin.command || !Array.isArray(plugin.command) || plugin.command.length === 0) {
-            Logger.warn(`   ⚠️ Plugin sin comandos válidos: ${path.basename(pluginPath)}`);
             return;
         }
 
@@ -85,12 +114,8 @@ async function procesarPlugin(pluginPath, comandosPorCategoria) {
         const isOwner = plugin.isOwner || false;
         const isAdmin = plugin.isAdmin || false;
 
-        Logger.info(`   🏷️ Categoría: ${categoria}`);
-        Logger.info(`   🔧 Comando: ${comandoPrincipal}`);
-
         if (!comandosPorCategoria[categoria]) {
             comandosPorCategoria[categoria] = [];
-            Logger.info(`   🆕 Nueva categoría creada: ${categoria}`);
         }
 
         comandosPorCategoria[categoria].push({
@@ -100,10 +125,8 @@ async function procesarPlugin(pluginPath, comandosPorCategoria) {
             isAdmin: isAdmin
         });
 
-        Logger.info(`   ✅ Comando agregado: ${comandoPrincipal} a ${categoria}`);
-
     } catch (error) {
-        Logger.error(`   💥 Error cargando plugin ${path.basename(pluginPath)}:`, error.message);
+        Logger.debug(`Error cargando plugin ${path.basename(pluginPath)}:`, error.message);
     }
 }
 
@@ -119,79 +142,163 @@ function obtenerNombreCategoria(pluginPath) {
     return 'General';
 }
 
-function formatearMenu(comandosPorCategoria) {
-    Logger.info(`🎨 Formateando menú con ${Object.keys(comandosPorCategoria).length} categorías`);
-
+function formatearMenu(comandosPorCategoria, sender) {
     if (Object.keys(comandosPorCategoria).length === 0) {
-        Logger.warn('⚠️ No hay comandos para mostrar en el menú');
         return crearMenuVacio();
     }
 
-    let menu = `🛡️ *GUARDIAN BOT - MENÚ DE COMANDOS*\n`;
-    menu += `Prefijo: ${Config.bot.prefix}\n\n`;
+    const stats = obtenerEstadisticasBot();
+    const uptime = formatearTiempo(Date.now() - stats.inicio.getTime());
+    const username = '@' + sender.split('@')[0];
 
-    // Ordenar categorías
+    // Encabezado principal con diseño similar al primero
+    const mainTitle = toBoldMono(` ${Config.bot.nombre} `);
+    let menu = `╭━━〔 🔥 ${mainTitle} 🔥 〕━━╮\n`;
+    menu += `${cmenub}👤 Hola, ${username}\n`;
+    menu += `${cmenub}🕐 Activo: ${uptime}\n`;
+    menu += `${cmenub}⚡ Prefijo: ${Config.bot.prefix}\n`;
+    menu += `${cmenub}📊 Stats: ${stats.comandosEjecutados} cmd | ${stats.mensajesProcesados} msg\n`;
+    menu += `╰━━━━━━━━━━━━━━━━━━━━╯\n\n`;
+
+    // Comandos por categoría - MOSTRAR TODOS LOS COMANDOS SIN LÍMITE
     const categorias = Object.keys(comandosPorCategoria).sort();
 
     for (const categoria of categorias) {
-        menu += `📂 *${categoria.toUpperCase()}*\n`;
+        const categoriaTitle = toBoldMono(` ${categoria.toUpperCase()} `);
+        menu += `╭━━〔 📁 ${categoriaTitle} 〕━━╮\n`;
 
         const comandos = comandosPorCategoria[categoria];
         comandos.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
-        comandos.forEach(cmd => {
-            let icono = '🔧';
+        // MOSTRAR TODOS LOS COMANDOS SIN LÍMITE
+        for (const cmd of comandos) {
+            let icono = '•';
             if (cmd.isOwner) icono = '👑';
             else if (cmd.isAdmin) icono = '⚡';
 
-            menu += `${icono} *${cmd.nombre}* - ${cmd.descripcion}\n`;
-        });
+            menu += `${cmenub}${icono} ${cmd.nombre}\n`;
+        }
 
-        menu += '\n';
+        menu += `╰━━━━━━━━━━━━━━━━━━━━╯\n\n`;
     }
 
-    menu += `🔐 *Leyenda:* 👑 Owner | ⚡ Admin | 🔧 Todos\n`;
-    menu += `📖 Usa: ${Config.bot.prefix}help <comando>`;
+    // Pie de página
+    menu += `╭━━━━━━━━━━━━━━━━━━━━╮\n`;
+    menu += `${cmenub}💡 Usa: ${Config.bot.prefix}help <comando>\n`;
+    menu += `${cmenub}📚 Para ver detalles específicos\n`;
+    menu += `╰━━━━━━━━━━━━━━━━━━━━╯`;
 
     return menu;
 }
 
 function crearMenuVacio() {
-    return `🛡️ *MENÚ DE COMANDOS*\n\n` +
-           `No se encontraron comandos cargados.\n\n` +
-           `💡 Verifica que los plugins estén en la carpeta plugins/`;
+    return `╭━━〔 ⚠️  MENÚ DE COMANDOS  ⚠️ 〕━━╮\n` +
+           `${cmenub}❌ No se encontraron comandos\n` +
+           `${cmenub}💡 Verifica la carpeta plugins/\n` +
+           `╰━━━━━━━━━━━━━━━━━━━━╯`;
 }
 
 function crearMenuError(mensaje) {
-    return `🛡️ *MENÚ DE COMANDOS*\n\n` +
-           `❌ Error: ${mensaje}\n\n` +
-           `🔧 Contacta al desarrollador`;
+    return `╭━━〔 ❌ ERROR 』━━╮\n` +
+           `${cmenub}${mensaje}\n` +
+           `${cmenub}🔧 Contacta al desarrollador\n` +
+           `╰━━━━━━━━━━━━━━━━━━━━╯`;
+}
+
+// Sistema de imágenes para el menú
+const menuImages = [
+    "https://i.imgur.com/3Q1W7yA.jpg",
+    "https://i.imgur.com/5m6v7zB.jpg", 
+    "https://i.imgur.com/8n9c0xD.jpg"
+];
+
+const backupImages = [
+    "https://images.unsplash.com/photo-1614680376573-df3480f0c6ff?w=500&q=80",
+    "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=500&q=80"
+];
+
+function getRandomMenuImage() {
+    const randomIndex = Math.floor(Math.random() * menuImages.length);
+    return menuImages[randomIndex];
+}
+
+function getRandomBackupImage() {
+    const randomIndex = Math.floor(Math.random() * backupImages.length);
+    return backupImages[randomIndex];
+}
+
+// Función para enviar menú con imagen
+async function enviarMenuConImagen(sock, jid, message, texto, sender) {
+    let imageUrl = getRandomMenuImage();
+    let attempts = 0;
+    const maxAttempts = 2;
+
+    while (attempts < maxAttempts) {
+        try {
+            await sock.sendMessage(jid, {
+                image: { url: imageUrl },
+                caption: texto,
+                mentions: [sender]
+            }, { quoted: message });
+
+            Logger.info('✅ Menú con imagen enviado exitosamente');
+            return true;
+
+        } catch (error) {
+            attempts++;
+            Logger.debug(`❌ Error con imagen (Intento ${attempts}):`, error.message);
+
+            if (attempts < maxAttempts) {
+                imageUrl = getRandomBackupImage();
+            } else {
+                return false;
+            }
+        }
+    }
+    return false;
 }
 
 // Exportar el módulo
 module.exports = {
-    command: ['menu', 'help', 'comandos'],
-        description: 'Mostrar menú de comandos disponibles',
-        isOwner: false,
-        isGroup: true,      // ✅ Grupos
-        isPrivate: true,    // ✅ Privado también
+    command: ['menu', 'help', 'comandos', 'ayuda'],
+    description: 'Mostrar menú completo de comandos disponibles',
+    isOwner: false,
+    isGroup: true,
+    isPrivate: true,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
-        Logger.info(`🔍 Iniciando comando menu para ${jid}`);
+        const sender = message.key.participant || message.key.remoteJid;
 
         try {
-            Logger.info('📁 Buscando comandos en plugins...');
-            const menuMsg = await generarMenuCompleto();
+            // Reacción inmediata
+            await sock.sendMessage(jid, {
+                react: { text: "📱", key: message.key }
+            });
 
-            Logger.info(`📤 Enviando menú (${menuMsg.length} caracteres)`);
-            await sock.sendMessage(jid, { text: menuMsg }, { quoted: message });
-            Logger.info(`✅ Menú enviado exitosamente a ${jid}`);
+            Logger.info(`📋 Generando menú para ${jid}`);
+            const menuTexto = await generarMenuCompleto(sender);
+
+            // Intentar enviar con imagen primero
+            const exito = await enviarMenuConImagen(sock, jid, message, menuTexto, sender);
+
+            if (!exito) {
+                // Fallback a texto plano
+                await sock.sendMessage(jid, { 
+                    text: menuTexto,
+                    mentions: [sender]
+                }, { quoted: message });
+                Logger.info('✅ Menú de texto enviado exitosamente');
+            }
 
         } catch (error) {
             Logger.error('💥 ERROR en comando menu:', error);
 
             try {
+                await sock.sendMessage(jid, {
+                    react: { text: "❌", key: message.key }
+                });
+
                 await sock.sendMessage(jid, { 
                     text: `❌ Error al generar el menú:\n${error.message}` 
                 }, { quoted: message });

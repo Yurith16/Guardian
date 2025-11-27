@@ -2,6 +2,14 @@ const { iniciarConexion } = require('./core/conexion');
 const GestorComandos = require('./core/comandos');
 const Logger = require('./utils/logger');
 const Config = require('./config/bot.json');
+const fs = require('fs');
+const path = require('path');
+
+// Crear carpeta de logs si no existe
+const logsDir = path.join(__dirname, 'logs');
+if (!fs.existsSync(logsDir)) {
+    fs.mkdirSync(logsDir, { recursive: true });
+}
 
 class GuardianBot {
     constructor() {
@@ -14,14 +22,21 @@ class GuardianBot {
             mensajesProcesados: 0,
             comandosEjecutados: 0
         };
+
+        // Manejo de señales para PM2
+        this.configurarManejoSenales();
     }
 
     async iniciar() {
         try {
             Logger.info('🛡️ Iniciando GuardianBot...');
 
+            // Verificar si está en PM2
+            if (process.env.PM2 === 'true') {
+                Logger.info('🚀 Ejecutando en PM2');
+            }
+
             console.log('🔍 Paso 1: Cargando configuración...');
-            console.log('Config:', JSON.stringify(Config, null, 2));
 
             // Cargar comandos primero
             console.log('🔍 Paso 2: Cargando comandos...');
@@ -45,6 +60,44 @@ class GuardianBot {
         } catch (error) {
             console.error('💥 ERROR COMPLETO:', error);
             Logger.error('💥 Error crítico al iniciar:', error);
+
+            // En PM2, esperar antes de reiniciar
+            if (process.env.PM2 === 'true') {
+                setTimeout(() => process.exit(1), 5000);
+            } else {
+                process.exit(1);
+            }
+        }
+    }
+
+    configurarManejoSenales() {
+        // Manejo graceful de cierre para PM2
+        process.on('SIGINT', async () => {
+            Logger.info('🛑 Apagando GuardianBot (SIGINT)...');
+            await this.cerrarGraceful();
+        });
+
+        process.on('SIGTERM', async () => {
+            Logger.info('🛑 Apagando GuardianBot (SIGTERM)...');
+            await this.cerrarGraceful();
+        });
+
+        process.on('SIGUSR2', async () => {
+            Logger.info('🔁 Reinicio graceful (SIGUSR2)...');
+            await this.cerrarGraceful();
+        });
+    }
+
+    async cerrarGraceful() {
+        try {
+            if (this.socket) {
+                Logger.info('🔌 Cerrando conexión WhatsApp...');
+                await this.socket.ws.close();
+            }
+            Logger.info('✅ GuardianBot cerrado correctamente');
+            process.exit(0);
+        } catch (error) {
+            Logger.error('Error en cierre graceful:', error);
             process.exit(1);
         }
     }
@@ -95,6 +148,7 @@ class GuardianBot {
         const comandosStr = String(this.gestorComandos?.contadorComandos || 0).padEnd(16);
         const subOwnersStr = String(subOwnersCount).padEnd(15);
         const inicioStr = new Date().toLocaleTimeString().padEnd(16);
+        const pm2Str = String(process.env.PM2 === 'true' ? 'PM2 🚀' : 'Node.js').padEnd(16);
 
         console.log(`
     ╔═══════════════════════════════════════╗
@@ -105,6 +159,7 @@ class GuardianBot {
     ║  ⚡ Prefix: ${prefixStr} ║
     ║  👑 Owner: ${globalStr} ║
     ║  🔧 Estado: ${estadoStr} ║
+    ║  🚀 Entorno: ${pm2Str} ║
     ╠═══════════════════════════════════════╣
     ║  📊 Comandos: ${comandosStr} ║
     ║  👥 Sub-Owners: ${subOwnersStr} ║
@@ -127,17 +182,17 @@ class GuardianBot {
     obtenerMetrics() {
         return this.metrics;
     }
+
+    // Método para obtener gestor de comandos
+    obtenerGestorComandos() {
+        return this.gestorComandos;
+    }
 }
 
 // Crear instancia global para acceso desde comandos
 const botInstance = new GuardianBot();
 
-// Manejo graceful de cierre
-process.on('SIGINT', async () => {
-    Logger.info('🛑 Apagando GuardianBot...');
-    process.exit(0);
-});
-
+// Manejo de errores no capturados
 process.on('uncaughtException', (error) => {
     console.error('💥 UNCAUGHT EXCEPTION:', error);
     Logger.error('💥 Error no capturado:', error);

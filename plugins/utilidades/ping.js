@@ -1,7 +1,7 @@
 const Logger = require('../../utils/logger');
 
 module.exports = {
-    command: ['ping', 'latencia'],
+    command: ['speed', 'latencia','test'],
         description: 'Ver latencia del bot',
         isOwner: false,
         isGroup: true,      // ✅ Grupos

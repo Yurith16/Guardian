@@ -11,47 +11,64 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
-        
-        try {
-            // Verificar si se proporcionó usuario
-            if (args.length === 0 && !message.message?.extendedTextMessage?.contextInfo?.mentionedJid) {
-                return await sock.sendMessage(jid, { 
-                    text: '❌ *Uso:* .unban @usuario\nO: .unban 50499001122' 
-                }, { quoted: message });
-            }
 
+        try {
             let userJid;
 
-            // Obtener JID del usuario
-            if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
+            // Verificar si es respuesta a un mensaje
+            const quotedMessage = message.message?.extendedTextMessage?.contextInfo;
+            if (quotedMessage?.participant) {
+                // Usar el usuario del mensaje citado
+                userJid = quotedMessage.participant;
+            } 
+            // Verificar si se mencionó a alguien
+            else if (message.message?.extendedTextMessage?.contextInfo?.mentionedJid?.length > 0) {
                 userJid = message.message.extendedTextMessage.contextInfo.mentionedJid[0];
-            } else {
+            } 
+            // Verificar si se proporcionó número
+            else if (args.length > 0) {
                 const numero = args[0].trim();
                 if (!/^\d{8,15}$/.test(numero)) {
                     return await sock.sendMessage(jid, { 
-                        text: '❌ *Formato inválido.*\nUsa: .unban @usuario\nO: .unban 50499001122' 
+                        text: '❌ *Formato inválido.*\nUsa: .unban @usuario\nO: .unban 50499001122\nO: Responde .unban a un mensaje' 
                     }, { quoted: message });
                 }
                 userJid = `${numero}@s.whatsapp.net`;
+            } else {
+                return await sock.sendMessage(jid, { 
+                    text: '❌ *Debes mencionar, responder o proporcionar un número.*\n\n*Ejemplos:*\n.unban @usuario\n.unban 50499001122\nResponde .unban a un mensaje' 
+                }, { quoted: message });
             }
 
             // Cargar lista negra
             const blacklistPath = path.join(__dirname, '../../config/blacklist.json');
             const blacklistData = JSON.parse(await fs.readFile(blacklistPath, 'utf8'));
-            
-            // Verificar si está baneado
-            if (!blacklistData.bannedUsers.includes(userJid)) {
+
+            // Buscar el usuario en la lista negra (compara con cualquier formato)
+            const usuarioBaneado = blacklistData.bannedUsers.find(bannedJid => {
+                // Comparar números sin el @
+                const bannedNumber = bannedJid.split('@')[0];
+                const userNumber = userJid.split('@')[0];
+                return bannedNumber === userNumber;
+            });
+
+            if (!usuarioBaneado) {
                 return await sock.sendMessage(jid, { 
                     text: '✅ El usuario no está baneado.' 
                 }, { quoted: message });
             }
 
-            // Remover de lista negra
-            blacklistData.bannedUsers = blacklistData.bannedUsers.filter(jid => jid !== userJid);
+            // Remover de lista negra (elimina cualquier formato que tenga)
+            blacklistData.bannedUsers = blacklistData.bannedUsers.filter(bannedJid => {
+                const bannedNumber = bannedJid.split('@')[0];
+                const userNumber = userJid.split('@')[0];
+                return bannedNumber !== userNumber;
+            });
+
             await fs.writeFile(blacklistPath, JSON.stringify(blacklistData, null, 2));
 
             const userNumber = userJid.split('@')[0];
-            
+
             await sock.sendMessage(jid, { 
                 text: `✅ *Usuario desbaneado*\n📱 ${userNumber}\n\n✅ Ahora puede usar el bot nuevamente.` 
             }, { quoted: message });
@@ -60,7 +77,7 @@ module.exports = {
 
         } catch (error) {
             Logger.error('Error en comando unban:', error);
-            
+
             try {
                 await sock.sendMessage(jid, { 
                     text: '❌ Error al desbanear al usuario.' 

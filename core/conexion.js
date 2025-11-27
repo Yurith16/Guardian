@@ -3,6 +3,8 @@ const chalk = require('chalk')
 const path = require('path')
 const readline = require("readline")
 const qrcode = require('qrcode-terminal')
+const ManejadorAntispam = require('./seguridad_antispam');
+const ManejadorEventosGrupo = require('./manejador_eventos');
 const {
     default: makeWASocket,
     useMultiFileAuthState,
@@ -15,12 +17,9 @@ const { Boom } = require('@hapi/boom')
 const pino = require("pino")
 const NodeCache = require('node-cache')
 const Logger = require('../utils/logger')
+const ManejadorSeguridad = require('./seguridad')
 
 const SESSION_FOLDER = "./sessions"
-
-if (!fs.existsSync(SESSION_FOLDER)) {
-    fs.mkdirSync(SESSION_FOLDER, { recursive: true })
-}
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -31,50 +30,89 @@ const question = (text) => {
     return new Promise((resolve) => rl.question(text, resolve))
 }
 
+let usarCodigo = false
+let numero = ""
+let reconectando = false
+
 class ManejadorConexion {
     constructor(guardianBot) {
         this.guardianBot = guardianBot
         this.sock = null
+        this.manejadorAntispam = new ManejadorAntispam();
+        this.manejadorEventos = new ManejadorEventosGrupo();
         this.estaConectado = false
         this.reconexionIntentos = 0
         this.maxReconexionIntentos = 5
-        this.usarCodigo = false
-        this.numero = ""
-        this.estadoQR = null
-        this.spamCount = new Map()
+        this.qrCode = null
+        this.intentosSesionInvalida = 0
+        this.maxIntentosSesionInvalida = 3
+        this.manejadorSeguridad = new ManejadorSeguridad() // ✅ INICIALIZAR AQUÍ
     }
 
+    // ✅ VERSIÓN SIMPLIFICADA - Solo verifica que existe creds.json
     existeSesion() {
         try {
             const credsPath = path.join(SESSION_FOLDER, "creds.json")
-            if (!fs.existsSync(credsPath)) return false
-            const stats = fs.statSync(credsPath)
-            if (stats.size < 100) return false
-            const credsContent = fs.readFileSync(credsPath, 'utf8')
-            const creds = JSON.parse(credsContent)
-            return creds && creds.noiseKey && creds.signedIdentityKey && creds.registered
+            const existe = fs.existsSync(SESSION_FOLDER) && fs.existsSync(credsPath)
+
+            if (existe) {
+                const stats = fs.statSync(credsPath)
+                if (stats.size > 10) {
+                    return true
+                }
+            }
+            return false
         } catch (error) {
             return false
         }
     }
 
     async iniciar() {
-        try {
-            console.log(chalk.yellow('🔄 Conectando...'))
-            const { state, saveCreds } = await useMultiFileAuthState(SESSION_FOLDER)
-            const tieneSesion = this.existeSesion()
+        if (reconectando) return
+        reconectando = true
+        this.reconexionIntentos++
 
-            if (!tieneSesion) {
-                await this.preguntarMetodoConexion()
+        try {
+            console.log(chalk.yellow('🔄 Iniciando conexión con WhatsApp...'))
+
+            if (!fs.existsSync(SESSION_FOLDER)) {
+                fs.mkdirSync(SESSION_FOLDER, { recursive: true })
             }
 
-            const { version } = await fetchLatestBaileysVersion()
+            // ✅ VERIFICACIÓN SIMPLE DE SESIÓN
+            const tieneSesion = this.existeSesion()
+
+            if (tieneSesion) {
+                console.log(chalk.green('✅ Sesión detectada. Intentando reconexión automática...'))
+
+                if (this.intentosSesionInvalida >= this.maxIntentosSesionInvalida) {
+                    console.log(chalk.red('\n❌ SESIÓN CORRUPTA DETECTADA'))
+                    console.log(chalk.yellow('💡 Solución:'))
+                    console.log(chalk.cyan('   1. Borra la carpeta "sessions" manualmente'))
+                    console.log(chalk.cyan('   2. Reinicia el bot'))
+                    console.log(chalk.cyan('   3. Escanea el código QR nuevamente\n'))
+
+                    await question(chalk.magenta('Presiona Enter después de borrar la carpeta "sessions"...'))
+                    this.intentosSesionInvalida = 0
+                }
+            } else {
+                console.log(chalk.yellow('⚠️ No se encontró sesión. Mostrando métodos de conexión...'))
+                this.intentosSesionInvalida = 0
+            }
+
+            const { state, saveCreds } = await useMultiFileAuthState(SESSION_FOLDER)
             const msgRetryCounterCache = new NodeCache()
+            const { version } = await fetchLatestBaileysVersion()
+
+            // ✅ SOLO preguntar método si NO hay sesión
+            if (!tieneSesion && (!state.creds.registered || Object.keys(state.creds).length === 0)) {
+                await this.preguntarMetodoConexion()
+            }
 
             this.sock = makeWASocket({
                 version,
                 logger: pino({ level: 'silent' }),
-                printQRInTerminal: !this.usarCodigo && !tieneSesion,
+                printQRInTerminal: !usarCodigo && !tieneSesion,
                 browser: Browsers.ubuntu('Chrome'),
                 auth: {
                     creds: state.creds,
@@ -83,10 +121,10 @@ class ManejadorConexion {
                 markOnlineOnConnect: true,
                 generateHighQualityLinkPreview: true,
                 syncFullHistory: false,
-                getMessage: async (key) => ({ }),
+                getMessage: async () => ({}),
                 msgRetryCounterCache,
                 defaultQueryTimeoutMs: 60000,
-                connectTimeoutMs: 60000,
+                connectTimeoutMs: 30000,
                 keepAliveIntervalMs: 10000,
                 emitOwnEvents: true,
                 fireInitQueries: true,
@@ -95,45 +133,109 @@ class ManejadorConexion {
             this.sock.ev.on('creds.update', saveCreds)
             this.configurarEventos()
 
-            if (this.usarCodigo && !tieneSesion && this.numero) {
-                await this.procesarPairingCode()
+            // ✅ SOLO mostrar pairing code si NO hay sesión
+            if (usarCodigo && !tieneSesion) {
+                setTimeout(async () => {
+                    try {
+                        if (this.sock && !state.creds.registered) {
+                            console.log(chalk.yellow('📞 Solicitando código de pairing...'))
+
+                            const code = await this.sock.requestPairingCode(numero.replace('+', ''))
+
+                            console.log(chalk.black(chalk.bgGreen(` 🎯 CÓDIGO DE EMPAREJAMIENTO `)))
+                            console.log(chalk.white.bgBlue(`         ${code}         `))
+                            console.log(chalk.yellow(`\n📲 Instrucciones:`))
+                            console.log(chalk.cyan(`1. WhatsApp → Ajustes → Dispositivos vinculados`))
+                            console.log(chalk.cyan(`2. "Vincular un dispositivo"`))
+                            console.log(chalk.cyan(`3. Ingresa: ${code}`))
+
+                            setTimeout(() => {
+                                if (!state.creds.registered && !this.estaConectado) {
+                                    console.log(chalk.yellow('🔄 Código expirado, regenerando...'))
+                                    this.regenerarPairingCode(state, saveCreds)
+                                }
+                            }, 40000)
+                        }
+                    } catch (error) {
+                        console.log(chalk.red('❌ Error con pairing code:'))
+                        console.log(chalk.red(`   ${error.message}`))
+                        console.log(chalk.yellow('🔄 Cambiando a QR automáticamente...'))
+                        usarCodigo = false
+                        this.regenerarConexion()
+                    }
+                }, 3000)
             }
 
             this.reconexionIntentos = 0
+            reconectando = false
             return this.sock
 
         } catch (error) {
-            console.error(chalk.red('❌ Error:'), error.message)
-            await this.reconectar()
+            console.error(chalk.red('❌ Error en conexión:'), error.message)
+
+            // ✅ INCREMENTAR CONTADOR SI HAY SESIÓN PERO FALLA LA CONEXIÓN
+            if (this.existeSesion()) {
+                this.intentosSesionInvalida++
+                console.log(chalk.yellow(`⚠️ Intento ${this.intentosSesionInvalida}/${this.maxIntentosSesionInvalida} con sesión existente`))
+
+                if (this.intentosSesionInvalida >= this.maxIntentosSesionInvalida) {
+                    console.log(chalk.red('\n💡 La sesión parece corrupta. Si los errores continúan:'))
+                    console.log(chalk.cyan('   - Borra la carpeta "sessions" manualmente'))
+                    console.log(chalk.cyan('   - Reinicia el bot\n'))
+                }
+            }
+
+            reconectando = false
+            const delay = Math.min(2000 * this.reconexionIntentos, 10000)
+            console.log(chalk.yellow(`🔄 Reconectando en ${delay/1000} segundos...`))
+            setTimeout(() => this.iniciar(), delay)
         }
     }
 
-    async procesarPairingCode() {
+    async regenerarPairingCode(state, saveCreds) {
         try {
-            console.log(chalk.yellow('📞 Código...'))
+            if (this.sock && !state.creds.registered) {
+                const newCode = await this.sock.requestPairingCode(numero.replace('+', ''))
+                console.log(chalk.black(chalk.bgGreen(` 🎯 NUEVO CÓDIGO `)))
+                console.log(chalk.white.bgBlue(`         ${newCode}         `))
+                console.log(chalk.yellow(`⏰ Expira en 40 segundos...`))
+            }
         } catch (error) {
-            this.usarCodigo = false
+            console.log(chalk.red('❌ Error generando nuevo código, cambiando a QR...'))
+            usarCodigo = false
             this.regenerarConexion()
         }
     }
 
+    regenerarConexion() {
+        if (this.sock) {
+            this.sock.end()
+        }
+        setTimeout(() => this.iniciar(), 1000)
+    }
+
     async preguntarMetodoConexion() {
         console.log(chalk.blueBright('\n┌────────────────────────────┐'))
-        console.log(chalk.blueBright('│          CONEXIÓN           │'))
+        console.log(chalk.blueBright('│     MÉTODO DE VINCULACIÓN    │'))
         console.log(chalk.blueBright('└────────────────────────────┘'))
-        console.log(chalk.yellow('1.') + chalk.cyan(' QR'))
-        console.log(chalk.yellow('2.') + chalk.cyan(' Código'))
+        console.log(chalk.green('\n¿CÓMO DESEA CONECTARSE?'))
+        console.log(chalk.yellow('1.') + chalk.cyan(' Código QR'))
+        console.log(chalk.yellow('2.') + chalk.cyan(' Código de 8 dígitos'))
 
-        const opcion = await question(chalk.magenta('\nOpción: '))
-        this.usarCodigo = opcion.trim() === "2"
+        const opcion = await question(chalk.magenta('\nElige opción (1/2): '))
+        usarCodigo = opcion === "2"
 
-        if (this.usarCodigo) {
-            console.log(chalk.yellow('\n📱 Número:'))
-            this.numero = await question('')
-            this.numero = this.numero.replace(/[^0-9]/g, '')
-            if (!this.numero.startsWith('504') || this.numero.length !== 11) {
-                this.usarCodigo = false
+        if (usarCodigo) {
+            console.log(chalk.yellow('\n📱 Ingresa tu número (ejemplo: 50498729368):'))
+            numero = await question('')
+            numero = numero.replace(/[^0-9]/g, '')
+
+            if (!numero.startsWith('504') || numero.length !== 11) {
+                console.log(chalk.red('❌ Formato incorrecto. Usando QR...'))
+                usarCodigo = false
             }
+        } else {
+            console.log(chalk.green('✅ Usando método QR'))
         }
     }
 
@@ -143,17 +245,16 @@ class ManejadorConexion {
         this.sock.ev.on('connection.update', (update) => {
             const { connection, lastDisconnect, qr } = update
 
-            if (qr && !this.estaConectado && !this.usarCodigo) {
-                this.estadoQR = qr
-                console.log(chalk.green('\n📱 ESCANEA QR:\n'))
-                qrcode.generate(qr, { small: true })
-            }
-
             if (connection === 'open') {
                 this.estaConectado = true
                 this.reconexionIntentos = 0
-                this.estadoQR = null
-                console.log(chalk.green('\n🎉 ¡CONECTADO!'))
+                this.intentosSesionInvalida = 0
+                reconectando = false
+                this.qrCode = null
+
+                console.log(chalk.green('🎉 ¡Conectado a WhatsApp!'))
+                console.log(chalk.cyan(`👤 Usuario: ${this.sock.user?.name || 'Bot'}`))
+
                 setTimeout(() => {
                     if (this.guardianBot && this.guardianBot.mostrarBanner) {
                         this.guardianBot.mostrarBanner()
@@ -164,8 +265,23 @@ class ManejadorConexion {
             if (connection === 'close') {
                 this.estaConectado = false
                 const reason = new Boom(lastDisconnect?.error)?.output?.statusCode
-                console.log(chalk.yellow(`\n🔌 Cerrado: ${reason}`))
-                this.reconectar()
+
+                console.log(chalk.yellow(`🔌 Conexión cerrada. Razón: ${reason}`))
+
+                if (reason === DisconnectReason.loggedOut) {
+                    console.log(chalk.red('❌ Sesión cerrada. Borra la carpeta "sessions" y reinicia el bot'))
+                    this.limpiarSesionCompleta()
+                } else {
+                    console.log(chalk.yellow('🔄 Reconectando...'))
+                    this.reconectar()
+                }
+            }
+
+            // ✅ QR solo si NO hay sesión
+            if (qr && !usarCodigo && !this.estaConectado && !this.existeSesion()) {
+                this.qrCode = qr
+                console.log(chalk.green('📱 Escanea el código QR con WhatsApp:'))
+                qrcode.generate(qr, { small: true })
             }
         })
 
@@ -177,191 +293,122 @@ class ManejadorConexion {
                 for (const message of messages) {
                     if (message.key.fromMe) continue;
                     const jid = message.key.remoteJid;
-                    const texto = this.obtenerTextoMensaje(message);
+                    const texto = this.extraerTextoMensaje(message);
 
-                    if (!message.key.fromMe && message.message) {
-                        await this.guardianBot.procesarMensaje(message);
+                    // Filtrar mensajes antiguos
+                    if (message.messageTimestamp && (Date.now()/1000 - message.messageTimestamp > 120)) continue
+
+                    // ========== VERIFICACIÓN ANTILINK PRIMERO ==========
+                    if (jid.endsWith('@g.us') && texto) {
+                        // ✅ VERIFICAR QUE manejadorSeguridad EXISTA ANTES DE USARLO
+                        if (this.manejadorSeguridad && typeof this.manejadorSeguridad.verificarAntilink === 'function') {
+                            await this.manejadorSeguridad.verificarAntilink(this.sock, message, jid, texto);
+                        } else {
+                            console.log(chalk.red('❌ manejadorSeguridad no está disponible'));
+                        }
                     }
 
-                    if (jid.endsWith('@g.us') && texto) {
-                        await this.verificarAntilink(message, jid, texto);
+                    // ========== VERIFICACIÓN ANTISPAM ==========
+                    if (jid.endsWith('@g.us')) {
+                        await this.manejadorAntispam.verificarSpam(this.sock, message);
+                    }
+
+                    // ========== PROCESAR COMANDOS DESPUÉS ==========
+                    if (!message.key.fromMe && message.message) {
+                        await this.guardianBot.procesarMensaje(message);
                     }
                 }
             } catch (error) {
                 if (!error.message.includes('Bad MAC')) {
-                    console.error(chalk.red('❌ Error:'), error.message)
+                    console.error(chalk.red('❌ Error procesando mensaje:'), error.message)
                 }
             }
         })
+
+        this.sock.ev.on('group-participants.update', async (update) => {
+            try {
+                const { id, participants, action } = update;
+
+                if (action === 'add') {
+                    // Nuevos miembros
+                    await this.manejadorEventos.manejarNuevoMiembro(this.sock, id, participants);
+                } else if (action === 'remove') {
+                    // Miembros que salen
+                    for (const usuario of participants) {
+                        await this.manejadorEventos.manejarMiembroSale(this.sock, id, usuario);
+                    }
+                }
+            } catch (error) {
+                Logger.error('Error en group-participants.update:', error);
+            }
+        });
 
         this.sock.ev.on('messages.update', () => {})
         this.sock.ev.on('message-receipt.update', () => {})
         this.sock.ev.on('presence.update', () => {})
     }
 
-    obtenerTextoMensaje(mensaje) {
-        if (mensaje.message?.conversation) return mensaje.message.conversation;
-        if (mensaje.message?.extendedTextMessage?.text) return mensaje.message.extendedTextMessage.text;
-        if (mensaje.message?.imageMessage?.caption) return mensaje.message.imageMessage.caption;
-        if (mensaje.message?.videoMessage?.caption) return mensaje.message.videoMessage.caption;
-        return '';
-    }
-
-    contieneEnlacesNoPermitidos(texto) {
-        if (!texto || typeof texto !== 'string') return false;
-        const dominiosPermitidos = [
-            'youtube.com', 'youtu.be', 'instagram.com', 'tiktok.com', 
-            'vm.tiktok.com', 'vt.tiktok.com', 'twitter.com', 'x.com',
-            'pinterest.com', 'facebook.com', 'fb.com', 'whatsapp.com'
-        ];
-        const urlRegex = /(https?:\/\/[^\s]+)|(www\.[^\s]+)|([^\s]+\.[a-z]{2,}(\/[^\s]*)?)/gi;
-        const enlaces = texto.match(urlRegex);
-        if (!enlaces) return false;
-
-        for (const enlace of enlaces) {
-            try {
-                let dominio = enlace.toLowerCase();
-                if (dominio.includes('://')) {
-                    const url = new URL(dominio.includes('http') ? dominio : 'https://' + dominio);
-                    dominio = url.hostname;
-                } else if (dominio.startsWith('www.')) {
-                    dominio = dominio.replace('www.', '');
-                }
-                dominio = dominio.split('/')[0];
-                const esPermitido = dominiosPermitidos.some(perm => dominio.includes(perm));
-                if (!esPermitido && dominio.includes('.') && dominio.length > 3) {
-                    return true;
-                }
-            } catch (error) {
-                continue;
-            }
-        }
-        return false;
-    }
-
-    async verificarAntilink(mensaje, jid, texto) {
+    // ✅ MÉTODO PARA EXTRAER TEXTO DE MENSAJES
+    extraerTextoMensaje(message) {
         try {
-            let gestorGrupos;
-            try {
-                const bot = require('../main');
-                const gestorComandos = bot.obtenerGestorComandos();
-                gestorGrupos = gestorComandos.obtenerGestorGrupos();
-            } catch (error) {
-                return;
-            }
-            if (!gestorGrupos) return;
+            const msg = message.message
+            if (!msg) return ''
 
-            let datosGrupo;
-            try {
-                datosGrupo = await gestorGrupos.obtenerDatos(jid);
-            } catch (error) {
-                return;
-            }
-            if (!datosGrupo) return;
-
-            const antilinkActivo = datosGrupo.configuraciones?.antilink !== false;
-            if (!antilinkActivo) return;
-
-            if (this.contieneEnlacesNoPermitidos(texto)) {
-                const usuario = mensaje.key.participant || mensaje.key.remoteJid;
-                const userKey = `${jid}_${usuario}`;
-                
-                // Contar spam
-                const currentCount = this.spamCount.get(userKey) || 0;
-                this.spamCount.set(userKey, currentCount + 1);
-                
-                // Eliminar mensaje inmediatamente
-                try {
-                    await this.sock.sendMessage(jid, { delete: mensaje.key });
-                } catch (error) {}
-
-                // Si es primer enlace, solo advertencia
-                if (currentCount === 0) {
-                    const advertencia = `@${usuario.split('@')[0]} no está permitido enviar enlaces`;
-                    await this.sock.sendMessage(jid, { text: advertencia, mentions: [usuario] });
-                }
-                // Si son 3+ enlaces, acción fuerte
-                else if (currentCount >= 3) {
-                    await this.procesarSpamSevero(jid, usuario);
-                    this.spamCount.delete(userKey);
-                }
-
-                // Resetear contador después de 1 minuto
-                setTimeout(() => {
-                    if (this.spamCount.get(userKey) === currentCount + 1) {
-                        this.spamCount.delete(userKey);
-                    }
-                }, 60000);
-            }
+            return msg.conversation 
+                || msg.extendedTextMessage?.text 
+                || msg.imageMessage?.caption
+                || msg.videoMessage?.caption
+                || msg.documentMessage?.caption
+                || ''
         } catch (error) {
-            Logger.error('Error antilink:', error);
+            return ''
         }
-    }
-
-    async procesarSpamSevero(jid, usuario) {
-        try {
-            // Cerrar grupo
-            await this.sock.groupSettingUpdate(jid, 'announcement');
-            
-            // Eliminar usuario
-            await this.sock.groupParticipantsUpdate(jid, [usuario], 'remove');
-            
-            // Mensaje de acción
-            await this.sock.sendMessage(jid, { 
-                text: `🚫 Usuario eliminado por spam de enlaces` 
-            });
-
-            // Reabrir grupo después de 2 minutos
-            setTimeout(async () => {
-                try {
-                    await this.sock.groupSettingUpdate(jid, 'not_announcement');
-                } catch (error) {}
-            }, 120000);
-
-            Logger.info(`🚫 Usuario eliminado por spam: ${usuario} en ${jid}`);
-        } catch (error) {
-            Logger.error('Error procesando spam:', error);
-        }
-    }
-
-    regenerarConexion() {
-        if (this.sock) {
-            try {
-                this.sock.end()
-            } catch (e) {}
-        }
-        setTimeout(() => this.iniciar(), 2000)
     }
 
     limpiarSesionCompleta() {
         try {
             if (fs.existsSync(SESSION_FOLDER)) {
                 fs.rmSync(SESSION_FOLDER, { recursive: true, force: true })
-                fs.mkdirSync(SESSION_FOLDER, { recursive: true })
+                console.log(chalk.yellow('🗑️ Sesión eliminada'))
+                this.intentosSesionInvalida = 0
             }
-        } catch (error) {}
+        } catch (error) {
+            console.error(chalk.red('Error limpiando sesión:'), error)
+        }
+
+        usarCodigo = false
+        numero = ""
         this.reconexionIntentos = 0
-        this.usarCodigo = false
-        this.numero = ""
+
+        console.log(chalk.yellow('🔄 Reiniciando conexión...'))
         setTimeout(() => this.iniciar(), 3000)
     }
 
-    async reconectar() {
+    reconectar() {
         if (this.reconexionIntentos >= this.maxReconexionIntentos) {
+            console.log(chalk.red('❌ Máximo de intentos alcanzado'))
+            console.log(chalk.yellow('🔄 Reiniciando completamente...'))
             this.limpiarSesionCompleta()
             return
         }
-        const delay = Math.min(3000 * (this.reconexionIntentos + 1), 15000)
-        this.reconexionIntentos++
+
+        const delay = Math.min(2000 * this.reconexionIntentos, 10000)
+        console.log(chalk.yellow(`🔄 Reconectando en ${delay/1000}s...`))
+
         setTimeout(() => this.iniciar(), delay)
     }
 
     async cerrarConexion() {
+        console.log(chalk.yellow('🛑 Cerrando conexión...'))
         this.estaConectado = false
+        reconectando = false
+
         if (this.sock) {
             try {
                 await this.sock.end()
-            } catch (error) {}
+            } catch (error) {
+                console.error(chalk.red('Error cerrando:'), error)
+            }
         }
         if (rl) {
             rl.close()

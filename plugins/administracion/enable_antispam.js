@@ -2,8 +2,8 @@ const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['antilink'],
-    description: 'Activar/desactivar protección antilink (Solo Admins)',
+    command: ['enable_antispam', 'antispam_on'],
+    description: 'Activar protección antispam (Solo Admins)',
     isGroup: true,
     isPrivate: false,
 
@@ -22,16 +22,8 @@ module.exports = {
                 }, { quoted: message });
             }
 
-            // Crear instancia directa del gestor de grupos
-            let gestorGrupos;
-            try {
-                gestorGrupos = new GestorGrupos();
-            } catch (error) {
-                Logger.error('Error creando gestor de grupos:', error);
-                return await sock.sendMessage(jid, { 
-                    text: '❌ Error al acceder a la base de datos.' 
-                }, { quoted: message });
-            }
+            // Crear instancia del gestor de grupos
+            const gestorGrupos = new GestorGrupos();
 
             // Obtener datos actuales del grupo
             let datosGrupo = await gestorGrupos.obtenerDatos(jid);
@@ -46,14 +38,8 @@ module.exports = {
                 }
             }
 
-            // Obtener estado actual del antilink
-            const estadoActual = datosGrupo.configuraciones?.antilink !== false;
-
-            // Cambiar estado (invertir el actual)
-            const nuevoEstado = !estadoActual;
-
-            // Actualizar configuración
-            datosGrupo.configuraciones.antilink = nuevoEstado;
+            // Activar antispam
+            datosGrupo.configuraciones.antispam = true;
 
             // Guardar cambios
             const guardadoExitoso = await gestorGrupos.guardarDatos(jid, datosGrupo);
@@ -64,25 +50,25 @@ module.exports = {
                 }, { quoted: message });
             }
 
-            const estadoTexto = nuevoEstado ? 'activada' : 'desactivada';
-            const emoji = nuevoEstado ? '🟢' : '🔴';
-
-            const mensaje = nuevoEstado 
-                ? `${emoji} *Protección Antilink ACTIVADA*\n\n🚫 *Enlaces BLOQUEADOS:*\n• WhatsApp (todas las variantes)\n• Cualquier enlace de navegador\n\n✅ *Enlaces PERMITIDOS:*\n• TikTok, Facebook, Instagram\n• YouTube, Twitter, MediaFire\n\n⚠️ *Los usuarios que envíen enlaces no permitidos serán ELIMINADOS automáticamente*`
-                : `${emoji} *Protección Antilink DESACTIVADA*\n\n📱 Ahora se permiten todos los enlaces.`;
+            const mensaje = `🟢 *PROTECCIÓN ANTISPAM ACTIVADA*\n\n` +
+                           `🚨 *Detección:* 15 mensajes en 5 segundos\n` +
+                           `⏰ *Acción:* Cierre temporal del grupo\n` +
+                           `👤 *Sanción:* Baneo temporal (5 minutos)\n` +
+                           `🗑️ *Limpieza:* Eliminación de mensajes spam\n\n` +
+                           `🛡️ *El grupo está protegido contra spam masivo*`;
 
             await sock.sendMessage(jid, { 
                 text: mensaje 
             }, { quoted: message });
 
-            Logger.info(`✅ Antilink ${estadoTexto} en ${jid} por ${sender}`);
+            Logger.info(`✅ Antispam activado en ${jid} por ${sender}`);
 
         } catch (error) {
-            Logger.error('Error en comando antilink:', error);
+            Logger.error('Error en enable_antispam:', error);
 
             try {
                 await sock.sendMessage(jid, { 
-                    text: '❌ Error al cambiar la configuración antilink.' 
+                    text: '❌ Error al activar la protección antispam.' 
                 }, { quoted: message });
             } catch (sendError) {
                 Logger.error('Error enviando mensaje:', sendError);

@@ -1,5 +1,6 @@
 const Logger = require('../../utils/logger');
 const Config = require('../../config/bot.json');
+const { version: baileysVersion } = require('@whiskeysockets/baileys/package.json');
 
 // Función auxiliar para formatear tiempo
 function formatearTiempo(ms) {
@@ -19,43 +20,30 @@ function formatearTiempo(ms) {
 }
 
 module.exports = {
-    command: ['estado', 'stats', 'infobot'],
-        description: 'Ver estado del bot',
-        isOwner: true,
-        isGroup: true,      // ✅ Grupos
-        isPrivate: true, 
+    command: ['infobot', 'status', 'estado', 'ping'],
+    description: 'Mostrar información del estado del bot',
+    isGroup: true,
+    isPrivate: true,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
 
         try {
-            // Obtener estadísticas básicas
+            // Obtener estadísticas del sistema
             const uptime = process.uptime();
             const memoria = process.memoryUsage();
             const memoriaUsada = Math.round(memoria.rss / 1024 / 1024);
             const memoriaHeap = Math.round(memoria.heapUsed / 1024 / 1024);
 
-            // Formatear tiempo
+            // Formatear tiempo de actividad
             const uptimeFormateado = formatearTiempo(uptime * 1000);
 
-            // Obtener información de owners desde config/bot.json
-            const globalOwner = Config.propietarios.global;
-            const subOwners = Config.propietarios.subOwners || [];
+            // Obtener información de la sesión
+            const estadoConexion = sock.ws?.readyState === 1 ? '🟢 Conectado' : '🔴 Desconectado';
 
-            let ownersInfo = '';
-            if (typeof globalOwner === 'object') {
-                ownersInfo += `👑 Owner: ${globalOwner.numero}\n`;
-            } else {
-                ownersInfo += `👑 Owner: ${globalOwner}\n`;
-            }
-
-            ownersInfo += `👥 Sub-Owners: ${subOwners.length}`;
-
-            // Intentar obtener métricas del bot
+            // Intentar obtener métricas del bot si están disponibles
             let mensajesProcesados = 'N/A';
             let comandosEjecutados = 'N/A';
-            let comandosTotales = 'N/A';
-            let pluginsCargados = 'N/A';
 
             try {
                 const bot = require('../../main');
@@ -64,45 +52,42 @@ module.exports = {
                     mensajesProcesados = metrics.mensajesProcesados || 0;
                     comandosEjecutados = metrics.comandosEjecutados || 0;
                 }
-                if (bot.gestorComandos) {
-                    comandosTotales = bot.gestorComandos.contadorComandos || 0;
-                    pluginsCargados = bot.gestorComandos.pluginsCargados || 0;
-                }
-            } catch (botError) {
-                Logger.debug('No se pudieron obtener métricas adicionales del bot');
+            } catch (error) {
+                Logger.debug('No se pudieron obtener métricas adicionales');
             }
 
-            const estadoMsg = `🛡️ *ESTADO DE GUARDIAN BOT*
+            const infoMsg = `🛡️ *INFORMACIÓN DEL BOT* 🛡️
 
 🤖 *Nombre:* ${Config.bot.nombre}
 ⚡ *Prefijo:* ${Config.bot.prefix}
 📦 *Versión:* ${Config.bot.version}
-
-${ownersInfo}
+🔧 *Baileys:* v${baileysVersion}
 
 📊 *Estadísticas:*
-⏰ *Encendido:* ${uptimeFormateado}
+⏰ *Activo:* ${uptimeFormateado}
 📨 *Mensajes:* ${mensajesProcesados}
 🔧 *Comandos:* ${comandosEjecutados}
-📦 *Plugins:* ${pluginsCargados}
-🛠️ *Total Comandos:* ${comandosTotales}
+📡 *Conexión:* ${estadoConexion}
 
 💾 *Memoria:*
 • RSS: ${memoriaUsada}MB
 • Heap: ${memoriaHeap}MB
 
+💻 *Sistema:*
+• Node.js: ${process.version}
+• Plataforma: ${process.platform}
+
 🛡️ *Protegiendo tus grupos 24/7*`;
 
-            await sock.sendMessage(jid, { text: estadoMsg }, { quoted: message });
-            Logger.info(`✅ Estado enviado a ${jid}`);
+            await sock.sendMessage(jid, { text: infoMsg }, { quoted: message });
+            Logger.info(`✅ InfoBot enviado a ${jid}`);
 
         } catch (error) {
-            Logger.error('Error en comando estado:', error);
+            Logger.error('Error en comando infobot:', error);
 
-            // Enviar mensaje de error simple
             try {
                 await sock.sendMessage(jid, { 
-                    text: '❌ Error al obtener el estado del bot.' 
+                    text: '❌ Error al obtener información del bot.' 
                 }, { quoted: message });
             } catch (sendError) {
                 Logger.error('Error enviando mensaje de error:', sendError);
