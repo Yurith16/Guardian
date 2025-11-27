@@ -1,4 +1,5 @@
 const Logger = require('../../utils/logger');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['join', 'unete'],
@@ -12,6 +13,14 @@ module.exports = {
         const sender = message.key.participant || message.key.remoteJid;
 
         try {
+            // ✅ VERIFICACIÓN DE PERMISOS
+            if (!ManejadorPropietarios.esOwner(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .join por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+                }, { quoted: message });
+            }
+
             // Verificar si se proporcionó enlace
             if (args.length === 0) {
                 return await sock.sendMessage(jid, { 

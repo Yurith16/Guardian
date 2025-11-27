@@ -1,6 +1,5 @@
 const Logger = require('../../utils/logger');
-const { spawn } = require('child_process');
-const path = require('path');
+const ManejadorPropietarios = require('../../utils/propietarios');
 
 module.exports = {
     command: ['reiniciar', 'restart'],
@@ -11,13 +10,22 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
 
         try {
+            // ✅ VERIFICACIÓN DE PERMISOS
+            if (!ManejadorPropietarios.esOwner(sender)) {
+                Logger.warn(`🚫 Intento de uso no autorizado de .reiniciar por: ${sender}`);
+                return await sock.sendMessage(jid, { 
+                    text: '⛔ *Acceso Denegado*\nSolo los propietarios del bot pueden usar este comando.' 
+                }, { quoted: message });
+            }
+
             await sock.sendMessage(jid, { 
                 text: '🔄 *Reiniciando Guardian...*\n\nEn breve estará activo nuevamente.' 
             }, { quoted: message });
 
-            Logger.info(`🔄 Reinicio solicitado por ${jid}`);
+            Logger.info(`🔄 Reinicio solicitado por ${sender}`);
 
             // Cerrar limpiamente
             setTimeout(() => {
@@ -26,7 +34,7 @@ module.exports = {
 
         } catch (error) {
             Logger.error('Error en comando reiniciar:', error);
-            
+
             try {
                 await sock.sendMessage(jid, { 
                     text: '❌ Error al intentar reiniciar.' 

@@ -1,7 +1,6 @@
 const fs = require('fs')
 const chalk = require('chalk')
 const path = require('path')
-const readline = require("readline")
 const qrcode = require('qrcode-terminal')
 const ManejadorAntispam = require('./seguridad_antispam');
 const ManejadorEventosGrupo = require('./manejador_eventos');
@@ -21,17 +20,6 @@ const ManejadorSeguridad = require('./seguridad')
 
 const SESSION_FOLDER = "./sessions"
 
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-})
-
-const question = (text) => {
-    return new Promise((resolve) => rl.question(text, resolve))
-}
-
-let usarCodigo = false
-let numero = ""
 let reconectando = false
 
 class ManejadorConexion {
@@ -92,11 +80,13 @@ class ManejadorConexion {
                     console.log(chalk.cyan('   2. Reinicia el bot'))
                     console.log(chalk.cyan('   3. Escanea el código QR nuevamente\n'))
 
-                    await question(chalk.magenta('Presiona Enter después de borrar la carpeta "sessions"...'))
+                    // En Docker/Pterodactyl no podemos esperar input, continuar automáticamente
+                    console.log(chalk.magenta('⏳ Continuando automáticamente en 5 segundos...'))
+                    await new Promise(resolve => setTimeout(resolve, 5000))
                     this.intentosSesionInvalida = 0
                 }
             } else {
-                console.log(chalk.yellow('⚠️ No se encontró sesión. Mostrando métodos de conexión...'))
+                console.log(chalk.yellow('⚠️ No se encontró sesión. Usando código QR automático...'))
                 this.intentosSesionInvalida = 0
             }
 
@@ -104,15 +94,10 @@ class ManejadorConexion {
             const msgRetryCounterCache = new NodeCache()
             const { version } = await fetchLatestBaileysVersion()
 
-            // ✅ SOLO preguntar método si NO hay sesión
-            if (!tieneSesion && (!state.creds.registered || Object.keys(state.creds).length === 0)) {
-                await this.preguntarMetodoConexion()
-            }
-
             this.sock = makeWASocket({
                 version,
                 logger: pino({ level: 'silent' }),
-                printQRInTerminal: !usarCodigo && !tieneSesion,
+                printQRInTerminal: !tieneSesion, // ✅ SOLO QR cuando no hay sesión
                 browser: Browsers.ubuntu('Chrome'),
                 auth: {
                     creds: state.creds,
@@ -132,39 +117,6 @@ class ManejadorConexion {
 
             this.sock.ev.on('creds.update', saveCreds)
             this.configurarEventos()
-
-            // ✅ SOLO mostrar pairing code si NO hay sesión
-            if (usarCodigo && !tieneSesion) {
-                setTimeout(async () => {
-                    try {
-                        if (this.sock && !state.creds.registered) {
-                            console.log(chalk.yellow('📞 Solicitando código de pairing...'))
-
-                            const code = await this.sock.requestPairingCode(numero.replace('+', ''))
-
-                            console.log(chalk.black(chalk.bgGreen(` 🎯 CÓDIGO DE EMPAREJAMIENTO `)))
-                            console.log(chalk.white.bgBlue(`         ${code}         `))
-                            console.log(chalk.yellow(`\n📲 Instrucciones:`))
-                            console.log(chalk.cyan(`1. WhatsApp → Ajustes → Dispositivos vinculados`))
-                            console.log(chalk.cyan(`2. "Vincular un dispositivo"`))
-                            console.log(chalk.cyan(`3. Ingresa: ${code}`))
-
-                            setTimeout(() => {
-                                if (!state.creds.registered && !this.estaConectado) {
-                                    console.log(chalk.yellow('🔄 Código expirado, regenerando...'))
-                                    this.regenerarPairingCode(state, saveCreds)
-                                }
-                            }, 40000)
-                        }
-                    } catch (error) {
-                        console.log(chalk.red('❌ Error con pairing code:'))
-                        console.log(chalk.red(`   ${error.message}`))
-                        console.log(chalk.yellow('🔄 Cambiando a QR automáticamente...'))
-                        usarCodigo = false
-                        this.regenerarConexion()
-                    }
-                }, 3000)
-            }
 
             this.reconexionIntentos = 0
             reconectando = false
@@ -192,51 +144,11 @@ class ManejadorConexion {
         }
     }
 
-    async regenerarPairingCode(state, saveCreds) {
-        try {
-            if (this.sock && !state.creds.registered) {
-                const newCode = await this.sock.requestPairingCode(numero.replace('+', ''))
-                console.log(chalk.black(chalk.bgGreen(` 🎯 NUEVO CÓDIGO `)))
-                console.log(chalk.white.bgBlue(`         ${newCode}         `))
-                console.log(chalk.yellow(`⏰ Expira en 40 segundos...`))
-            }
-        } catch (error) {
-            console.log(chalk.red('❌ Error generando nuevo código, cambiando a QR...'))
-            usarCodigo = false
-            this.regenerarConexion()
-        }
-    }
-
     regenerarConexion() {
         if (this.sock) {
             this.sock.end()
         }
         setTimeout(() => this.iniciar(), 1000)
-    }
-
-    async preguntarMetodoConexion() {
-        console.log(chalk.blueBright('\n┌────────────────────────────┐'))
-        console.log(chalk.blueBright('│     MÉTODO DE VINCULACIÓN    │'))
-        console.log(chalk.blueBright('└────────────────────────────┘'))
-        console.log(chalk.green('\n¿CÓMO DESEA CONECTARSE?'))
-        console.log(chalk.yellow('1.') + chalk.cyan(' Código QR'))
-        console.log(chalk.yellow('2.') + chalk.cyan(' Código de 8 dígitos'))
-
-        const opcion = await question(chalk.magenta('\nElige opción (1/2): '))
-        usarCodigo = opcion === "2"
-
-        if (usarCodigo) {
-            console.log(chalk.yellow('\n📱 Ingresa tu número (ejemplo: 50498729368):'))
-            numero = await question('')
-            numero = numero.replace(/[^0-9]/g, '')
-
-            if (!numero.startsWith('504') || numero.length !== 11) {
-                console.log(chalk.red('❌ Formato incorrecto. Usando QR...'))
-                usarCodigo = false
-            }
-        } else {
-            console.log(chalk.green('✅ Usando método QR'))
-        }
     }
 
     configurarEventos() {
@@ -278,9 +190,9 @@ class ManejadorConexion {
             }
 
             // ✅ QR solo si NO hay sesión
-            if (qr && !usarCodigo && !this.estaConectado && !this.existeSesion()) {
+            if (qr && !this.estaConectado && !this.existeSesion()) {
                 this.qrCode = qr
-                console.log(chalk.green('📱 Escanea el código QR con WhatsApp:'))
+                console.log(chalk.green('📱 Escanea este código QR con WhatsApp:'))
                 qrcode.generate(qr, { small: true })
             }
         })
@@ -324,6 +236,21 @@ class ManejadorConexion {
                 }
             }
         })
+
+        // ✅ AGREGAR AQUÍ EL MANEJADOR DE REACCIONES
+        this.sock.ev.on('messages.reaction', async (reactions) => {
+            for (const reaction of reactions) {
+                try {
+                    // Importar y usar el manejador de reacciones del comando play
+                    const playHandler = require('../plugins/descargas/play.js');
+                    if (playHandler.handleReaction) {
+                        await playHandler.handleReaction(this.sock, reaction);
+                    }
+                } catch (error) {
+                    console.error('Error procesando reacción:', error);
+                }
+            }
+        });
 
         this.sock.ev.on('group-participants.update', async (update) => {
             try {
@@ -376,8 +303,6 @@ class ManejadorConexion {
             console.error(chalk.red('Error limpiando sesión:'), error)
         }
 
-        usarCodigo = false
-        numero = ""
         this.reconexionIntentos = 0
 
         console.log(chalk.yellow('🔄 Reiniciando conexión...'))
@@ -409,9 +334,6 @@ class ManejadorConexion {
             } catch (error) {
                 console.error(chalk.red('Error cerrando:'), error)
             }
-        }
-        if (rl) {
-            rl.close()
         }
     }
 

@@ -7,14 +7,24 @@
     "lenguaje": "es"
   },
   "propietarios": {
-    "global": {
-      "numero": "20015168381136",
-      "id": "50496926150"
-    },
+    "global": [
+      {
+        "numero": "20015168381136",
+        "id": "50496926150@s.whatsapp.net"
+      },
+      {
+        "numero": "20015168381136@lid",
+        "id": "20015168381136@lid"
+      },
+      {
+        "numero": "",
+        "id": ""
+      }
+    ],
     "subOwners": [
       {
-        "numero": "120363423321054183@g.us ",
-        "id": "50496926150"
+        "numero": "50496926150",
+        "id": "50496926150@s.whatsapp.net"
       }
     ]
   },

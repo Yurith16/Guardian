@@ -3,7 +3,7 @@
   "nombre": "Guardian Bot",
   "descripcion": "Grupo oficial de Guardian Bot",
   "fecha_creacion": "2025-11-27T01:50:00.972Z",
-  "fecha_actualizacion": "2025-11-27T16:57:02.086Z",
+  "fecha_actualizacion": "2025-11-27T20:03:13.125Z",
   "configuraciones": {
     "antilink": true,
     "antibots": true,
@@ -14,32 +14,32 @@
     "welcomeMessage": "hola @user Bienvenido al grupo %group%"
   },
   "estadisticas": {
-    "total_mensajes": 468,
+    "total_mensajes": 623,
     "total_usuarios": 3,
-    "ultima_actividad": "2025-11-27T16:57:02.086Z"
+    "ultima_actividad": "2025-11-27T20:03:13.125Z"
   },
   "usuarios": {
     "20015168381136@lid": {
       "numero": "20015168381136",
-      "mensajes_totales": 337,
+      "mensajes_totales": 474,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T16:57:02.086Z",
+      "ultimo_mensaje": "2025-11-27T20:03:13.125Z",
       "primer_mensaje": "2025-11-27T01:50:00.974Z",
       "es_admin": false
     },
     "205862731792516@lid": {
       "numero": "205862731792516",
-      "mensajes_totales": 18,
+      "mensajes_totales": 35,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T03:02:18.267Z",
+      "ultimo_mensaje": "2025-11-27T18:52:44.217Z",
       "primer_mensaje": "2025-11-27T02:35:36.754Z",
       "es_admin": true
     },
     "29902166327441@lid": {
       "numero": "29902166327441",
-      "mensajes_totales": 113,
+      "mensajes_totales": 114,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T14:50:44.030Z",
+      "ultimo_mensaje": "2025-11-27T18:04:26.059Z",
       "primer_mensaje": "2025-11-27T13:53:35.307Z",
       "es_admin": false
     }

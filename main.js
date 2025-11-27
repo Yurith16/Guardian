@@ -125,12 +125,12 @@ class GuardianBot {
     mostrarBanner() {
         const { nombre, version, prefix } = this.config.bot;
 
-        // Obtener el global owner de forma segura
-        let globalOwner = '';
-        if (typeof this.config.propietarios.global === 'object') {
-            globalOwner = this.config.propietarios.global.numero || 'No configurado';
-        } else {
-            globalOwner = this.config.propietarios.global || 'No configurado';
+        // Obtener global owners count de forma segura
+        let globalOwnersCount = 0;
+        if (Array.isArray(this.config.propietarios.global)) {
+            globalOwnersCount = this.config.propietarios.global.length;
+        } else if (this.config.propietarios.global) {
+            globalOwnersCount = 1;
         }
 
         // Obtener subOwners count de forma segura
@@ -143,7 +143,7 @@ class GuardianBot {
         const nombreStr = String(nombre || '🛡️ Guardian Bot').padEnd(20);
         const versionStr = String(version || '1.0.0').padEnd(18);
         const prefixStr = String(prefix || '.').padEnd(20);
-        const globalStr = String(globalOwner).padEnd(20);
+        const globalStr = String(`${globalOwnersCount} owners`).padEnd(20);
         const estadoStr = String(this.estado || 'conectado').padEnd(19);
         const comandosStr = String(this.gestorComandos?.contadorComandos || 0).padEnd(16);
         const subOwnersStr = String(subOwnersCount).padEnd(15);
@@ -157,7 +157,7 @@ class GuardianBot {
     ║  🤖 Nombre: ${nombreStr} ║
     ║  📦 Versión: v${versionStr} ║
     ║  ⚡ Prefix: ${prefixStr} ║
-    ║  👑 Owner: ${globalStr} ║
+    ║  👑 Global Owners: ${globalStr} ║
     ║  🔧 Estado: ${estadoStr} ║
     ║  🚀 Entorno: ${pm2Str} ║
     ╠═══════════════════════════════════════╣

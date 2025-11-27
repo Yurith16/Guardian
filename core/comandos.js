@@ -334,22 +334,38 @@ class GestorComandos {
     // ========== SISTEMA DE VERIFICACIÓN DE PERMISOS ==========
 
     tienePermisosOwner(numero, remitenteCompleto) {
-        // Verificar si es el global owner (por número o ID completo)
-        const globalOwner = Config.propietarios.global;
-        if (typeof globalOwner === 'object') {
-            // Nueva estructura: { numero: "504...", id: "504...@s.whatsapp.net" }
-            if (numero === globalOwner.numero || remitenteCompleto === globalOwner.id) {
+        // Verificar si está en el array de global owners
+        const globalOwners = Config.propietarios.global;
+
+        if (Array.isArray(globalOwners)) {
+            // Buscar en el array de global owners
+            const esGlobalOwner = globalOwners.some(owner => {
+                if (typeof owner === 'object') {
+                    // Nueva estructura: { numero: "504...", id: "504...@s.whatsapp.net" }
+                    return numero === owner.numero || remitenteCompleto === owner.id;
+                } else {
+                    // Estructura antigua: solo número
+                    return numero === owner;
+                }
+            });
+
+            if (esGlobalOwner) {
+                return true;
+            }
+        } else if (typeof globalOwners === 'object') {
+            // Estructura antigua: objeto único
+            if (numero === globalOwners.numero || remitenteCompleto === globalOwners.id) {
                 return true;
             }
         } else {
-            // Estructura antigua: solo número
-            if (numero === globalOwner) {
+            // Estructura muy antigua: solo string
+            if (numero === globalOwners) {
                 return true;
             }
         }
 
         // Verificar subOwners (por número o ID completo)
-        const subOwners = Config.propietarios.subOwners;
+        const subOwners = Config.propietarios.subOwners || [];
         return subOwners.some(owner => {
             if (typeof owner === 'object') {
                 // Nueva estructura
