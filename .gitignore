@@ -6,7 +6,7 @@
 # 📦 SESIONES
 # =============================================
 sessions/
-*json
+creds.json
 creds.json
 sessions/
 database/grupos.db

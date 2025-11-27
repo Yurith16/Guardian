@@ -1,0 +1,47 @@
+{
+  "name": "guardianbot",
+  "version": "1.0.0",
+  "description": "Bot especializado en administración de grupos masivos de WhatsApp",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node main.js",
+    "dev": "nodemon main.js",
+    "setup": "node setup.js",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:stop": "pm2 stop guardianbot",
+    "pm2:restart": "pm2 restart guardianbot",
+    "pm2:reload": "pm2 reload guardianbot",
+    "pm2:delete": "pm2 delete guardianbot",
+    "pm2:logs": "pm2 logs guardianbot",
+    "pm2:status": "pm2 status",
+    "pm2:monit": "pm2 monit",
+    "pm2:save": "pm2 save",
+    "pm2:startup": "pm2 startup"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.21",
+    "axios": "^1.5.0",
+    "chalk": "^4.1.2",
+    "fluent-ffmpeg": "^2.1.3",
+    "moment": "^2.29.4",
+    "node-cache": "^5.1.2",
+    "node-webpmux": "^3.2.1",
+    "pino": "^8.21.0",
+    "pm2": "^6.0.14",
+    "qrcode-terminal": "^0.12.0",
+    "sharp": "^0.34.5",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "whatsapp-bot",
+    "group-management",
+    "moderation",
+    "automation"
+  ],
+  "author": "TuNombre",
+  "license": "MIT"
+}

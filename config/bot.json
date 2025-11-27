@@ -1,0 +1,35 @@
+{
+  "bot": {
+    "nombre": "🛡️ Guardian Bot",
+    "numero": "504",
+    "version": "1.0.0",
+    "prefix": "*",
+    "lenguaje": "es"
+  },
+  "propietarios": {
+    "global": {
+      "numero": "20015168381136",
+      "id": "50496926150"
+    },
+    "subOwners": [
+      {
+        "numero": "120363423321054183@g.us ",
+        "id": "50496926150"
+      }
+    ]
+  },
+  "conexion": {
+    "maxReconexiones": 5,
+    "tiempoReconexion": 5000,
+    "sessionFolder": "./sessions"
+  },
+  "seguridad": {
+    "antiFlood": true,
+    "maxMensajesMinuto": 10,
+    "detectarSpam": true
+  },
+  "database": {
+    "ruta": "./database/grupos.db",
+    "backupAutomatico": true
+  }
+}

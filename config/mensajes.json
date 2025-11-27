@@ -1,0 +1,26 @@
+{
+    "conexion": {
+        "iniciando": "🔄 Iniciando conexión con WhatsApp...",
+        "conectado": "✅ Conectado a WhatsApp correctamente",
+        "desconectado": "🔌 Conexión cerrada, reconectando...",
+        "qrGenerado": "📱 Escanea el código QR con WhatsApp"
+    },
+    "comandos": {
+        "cargando": "🔄 Cargando comandos...",
+        "cargados": " comandos cargados correctamente",
+        "noEncontrado": "❌ Comando no encontrado",
+        "sinPermisos": "⛔ No tienes permisos para usar este comando",
+        "usoIncorrecto": "💡 Uso incorrecto. Usa:"
+    },
+    "errores": {
+        "generico": "❌ Ocurrió un error inesperado",
+        "ejecucion": "💥 Error ejecutando comando:",
+        "cargaPlugin": "⚠️ Error cargando plugin:",
+        "procesarMensaje": "❌ Error procesando mensaje:"
+    },
+    "respuestas": {
+        "ping": "🏓 Pong!",
+        "menu": "📋 Menú de comandos disponible",
+        "info": "🤖 Información del bot"
+    }
+}
