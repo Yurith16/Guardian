@@ -26,6 +26,7 @@ yarn-error.log*
 
 # Cache de package managers
 .npmrc
+package-lock.json
 .yarnrc
 temp/
 *.mp4
@@ -66,6 +67,7 @@ config.local.json
 .env.local
 .env.production
 .env.development
+
 
 # Archivos de IDE/Editor
 .vscode/
