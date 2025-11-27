@@ -20,7 +20,6 @@ const SESSION_FOLDER = "./sessions"
 
 if (!fs.existsSync(SESSION_FOLDER)) {
     fs.mkdirSync(SESSION_FOLDER, { recursive: true })
-    console.log(chalk.green('✅ Sesiones creadas'))
 }
 
 const rl = readline.createInterface({
@@ -42,6 +41,7 @@ class ManejadorConexion {
         this.usarCodigo = false
         this.numero = ""
         this.estadoQR = null
+        this.spamCount = new Map()
     }
 
     existeSesion() {
@@ -54,27 +54,21 @@ class ManejadorConexion {
             const creds = JSON.parse(credsContent)
             return creds && creds.noiseKey && creds.signedIdentityKey && creds.registered
         } catch (error) {
-            console.log(chalk.yellow('⚠️ Sesión corrupta'))
             return false
         }
     }
 
     async iniciar() {
         try {
-            console.log(chalk.yellow('🔄 Conectando WhatsApp...'))
+            console.log(chalk.yellow('🔄 Conectando...'))
             const { state, saveCreds } = await useMultiFileAuthState(SESSION_FOLDER)
             const tieneSesion = this.existeSesion()
 
             if (!tieneSesion) {
-                console.log(chalk.yellow('⚠️ Sin sesión'))
                 await this.preguntarMetodoConexion()
-            } else {
-                console.log(chalk.green('✅ Sesión detectada'))
             }
 
-            const { version, isLatest } = await fetchLatestBaileysVersion()
-            console.log(chalk.blue(`📦 WA v${version.join('.')}`))
-
+            const { version } = await fetchLatestBaileysVersion()
             const msgRetryCounterCache = new NodeCache()
 
             this.sock = makeWASocket({
@@ -109,20 +103,15 @@ class ManejadorConexion {
             return this.sock
 
         } catch (error) {
-            console.error(chalk.red('❌ Error conexión:'), error.message)
+            console.error(chalk.red('❌ Error:'), error.message)
             await this.reconectar()
         }
     }
 
     async procesarPairingCode() {
         try {
-            console.log(chalk.yellow('📞 Pairing code...'))
-            console.log(chalk.green('✅ Código activado'))
-            console.log(chalk.cyan('📱 WhatsApp → Dispositivos'))
-            console.log(chalk.cyan('🔗 Vincular dispositivo'))
+            console.log(chalk.yellow('📞 Código...'))
         } catch (error) {
-            console.log(chalk.red('❌ Error código:'))
-            console.log(chalk.red(`   ${error.message}`))
             this.usarCodigo = false
             this.regenerarConexion()
         }
@@ -130,28 +119,21 @@ class ManejadorConexion {
 
     async preguntarMetodoConexion() {
         console.log(chalk.blueBright('\n┌────────────────────────────┐'))
-        console.log(chalk.blueBright('│     MÉTODO DE VINCULACIÓN    │'))
+        console.log(chalk.blueBright('│          CONEXIÓN           │'))
         console.log(chalk.blueBright('└────────────────────────────┘'))
-        console.log(chalk.green('\n¿CÓMO CONECTARSE?'))
-        console.log(chalk.yellow('1.') + chalk.cyan(' Código QR'))
-        console.log(chalk.yellow('2.') + chalk.cyan(' Código 8 dígitos'))
+        console.log(chalk.yellow('1.') + chalk.cyan(' QR'))
+        console.log(chalk.yellow('2.') + chalk.cyan(' Código'))
 
-        const opcion = await question(chalk.magenta('\nOpción (1/2): '))
+        const opcion = await question(chalk.magenta('\nOpción: '))
         this.usarCodigo = opcion.trim() === "2"
 
         if (this.usarCodigo) {
-            console.log(chalk.yellow('\n📱 Ingresa número:'))
+            console.log(chalk.yellow('\n📱 Número:'))
             this.numero = await question('')
             this.numero = this.numero.replace(/[^0-9]/g, '')
-
             if (!this.numero.startsWith('504') || this.numero.length !== 11) {
-                console.log(chalk.red('❌ Formato incorrecto. QR...'))
                 this.usarCodigo = false
-            } else {
-                console.log(chalk.green('✅ Usando código'))
             }
-        } else {
-            console.log(chalk.green('✅ Usando QR'))
         }
     }
 
@@ -159,14 +141,12 @@ class ManejadorConexion {
         if (!this.sock) return
 
         this.sock.ev.on('connection.update', (update) => {
-            const { connection, lastDisconnect, qr, isNewLogin } = update
+            const { connection, lastDisconnect, qr } = update
 
             if (qr && !this.estaConectado && !this.usarCodigo) {
                 this.estadoQR = qr
-                console.log(chalk.green('\n📱 ESCANEA QR:'))
-                console.log(chalk.yellow('⏳ 40 segundos...\n'))
+                console.log(chalk.green('\n📱 ESCANEA QR:\n'))
                 qrcode.generate(qr, { small: true })
-                console.log('')
             }
 
             if (connection === 'open') {
@@ -174,9 +154,6 @@ class ManejadorConexion {
                 this.reconexionIntentos = 0
                 this.estadoQR = null
                 console.log(chalk.green('\n🎉 ¡CONECTADO!'))
-                console.log(chalk.cyan(`👤 ${this.sock.user?.name || 'N/A'}`))
-                console.log(chalk.cyan(`📱 ${this.sock.user?.id?.split(':')[0] || 'N/A'}`))
-
                 setTimeout(() => {
                     if (this.guardianBot && this.guardianBot.mostrarBanner) {
                         this.guardianBot.mostrarBanner()
@@ -187,15 +164,8 @@ class ManejadorConexion {
             if (connection === 'close') {
                 this.estaConectado = false
                 const reason = new Boom(lastDisconnect?.error)?.output?.statusCode
-                console.log(chalk.yellow(`\n🔌 Cerrado. Razón: ${reason}`))
-
-                if (reason === DisconnectReason.loggedOut) {
-                    console.log(chalk.red('❌ Sesión cerrada'))
-                    this.limpiarSesionCompleta()
-                } else {
-                    console.log(chalk.yellow('🔄 Reconectando...'))
-                    this.reconectar()
-                }
+                console.log(chalk.yellow(`\n🔌 Cerrado: ${reason}`))
+                this.reconectar()
             }
         })
 
@@ -218,8 +188,8 @@ class ManejadorConexion {
                     }
                 }
             } catch (error) {
-                if (!error.message.includes('Bad MAC') && !error.message.includes('decrypt')) {
-                    console.error(chalk.red('❌ Error mensaje:'), error.message)
+                if (!error.message.includes('Bad MAC')) {
+                    console.error(chalk.red('❌ Error:'), error.message)
                 }
             }
         })
@@ -260,7 +230,6 @@ class ManejadorConexion {
                 dominio = dominio.split('/')[0];
                 const esPermitido = dominiosPermitidos.some(perm => dominio.includes(perm));
                 if (!esPermitido && dominio.includes('.') && dominio.length > 3) {
-                    Logger.info(`🚫 Enlace bloqueado: ${dominio}`);
                     return true;
                 }
             } catch (error) {
@@ -294,20 +263,64 @@ class ManejadorConexion {
             if (!antilinkActivo) return;
 
             if (this.contieneEnlacesNoPermitidos(texto)) {
-                Logger.info(`🚫 Antilink activo en ${jid}`);
+                const usuario = mensaje.key.participant || mensaje.key.remoteJid;
+                const userKey = `${jid}_${usuario}`;
+                
+                // Contar spam
+                const currentCount = this.spamCount.get(userKey) || 0;
+                this.spamCount.set(userKey, currentCount + 1);
+                
+                // Eliminar mensaje inmediatamente
                 try {
                     await this.sock.sendMessage(jid, { delete: mensaje.key });
-                    const usuario = mensaje.key.participant || mensaje.key.remoteJid;
-                    const userNum = usuario.split('@')[0];
-                    const advertencia = `🚫 *ENLACE BLOQUEADO*\n\n@${userNum} enlace no permitido.\n\n🔗 YouTube, Instagram, TikTok\n🔗 Twitter, Pinterest, Facebook\n🔗 WhatsApp\n\n⚠️ Mensaje eliminado.`;
+                } catch (error) {}
+
+                // Si es primer enlace, solo advertencia
+                if (currentCount === 0) {
+                    const advertencia = `@${usuario.split('@')[0]} no está permitido enviar enlaces`;
                     await this.sock.sendMessage(jid, { text: advertencia, mentions: [usuario] });
-                    Logger.info(`✅ Mensaje eliminado: @${userNum}`);
-                } catch (deleteError) {
-                    Logger.error('❌ Error eliminando:', deleteError);
                 }
+                // Si son 3+ enlaces, acción fuerte
+                else if (currentCount >= 3) {
+                    await this.procesarSpamSevero(jid, usuario);
+                    this.spamCount.delete(userKey);
+                }
+
+                // Resetear contador después de 1 minuto
+                setTimeout(() => {
+                    if (this.spamCount.get(userKey) === currentCount + 1) {
+                        this.spamCount.delete(userKey);
+                    }
+                }, 60000);
             }
         } catch (error) {
-            Logger.error('💥 Error antilink:', error);
+            Logger.error('Error antilink:', error);
+        }
+    }
+
+    async procesarSpamSevero(jid, usuario) {
+        try {
+            // Cerrar grupo
+            await this.sock.groupSettingUpdate(jid, 'announcement');
+            
+            // Eliminar usuario
+            await this.sock.groupParticipantsUpdate(jid, [usuario], 'remove');
+            
+            // Mensaje de acción
+            await this.sock.sendMessage(jid, { 
+                text: `🚫 Usuario eliminado por spam de enlaces` 
+            });
+
+            // Reabrir grupo después de 2 minutos
+            setTimeout(async () => {
+                try {
+                    await this.sock.groupSettingUpdate(jid, 'not_announcement');
+                } catch (error) {}
+            }, 120000);
+
+            Logger.info(`🚫 Usuario eliminado por spam: ${usuario} en ${jid}`);
+        } catch (error) {
+            Logger.error('Error procesando spam:', error);
         }
     }
 
@@ -325,11 +338,8 @@ class ManejadorConexion {
             if (fs.existsSync(SESSION_FOLDER)) {
                 fs.rmSync(SESSION_FOLDER, { recursive: true, force: true })
                 fs.mkdirSync(SESSION_FOLDER, { recursive: true })
-                console.log(chalk.yellow('🗑️ Sesión eliminada'))
             }
-        } catch (error) {
-            console.error(chalk.red('Error limpiando:'), error)
-        }
+        } catch (error) {}
         this.reconexionIntentos = 0
         this.usarCodigo = false
         this.numero = ""
@@ -338,18 +348,15 @@ class ManejadorConexion {
 
     async reconectar() {
         if (this.reconexionIntentos >= this.maxReconexionIntentos) {
-            console.log(chalk.red('❌ Máximo intentos'))
             this.limpiarSesionCompleta()
             return
         }
         const delay = Math.min(3000 * (this.reconexionIntentos + 1), 15000)
-        console.log(chalk.yellow(`🔄 Reconectando ${delay/1000}s...`))
         this.reconexionIntentos++
         setTimeout(() => this.iniciar(), delay)
     }
 
     async cerrarConexion() {
-        console.log(chalk.yellow('🛑 Cerrando...'))
         this.estaConectado = false
         if (this.sock) {
             try {

@@ -24,19 +24,19 @@ module.exports = {
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
-
+        
         try {
             const gestorGrupos = obtenerGestorGrupos();
             if (!gestorGrupos) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Sistema no disponible' 
+                    text: '❌ Error sistema' 
                 }, { quoted: message });
             }
 
             const datosGrupo = await gestorGrupos.obtenerDatos(jid);
             if (!datosGrupo) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Grupo no registrado' 
+                    text: '❌ Error grupo' 
                 }, { quoted: message });
             }
 
@@ -45,26 +45,23 @@ module.exports = {
             }
 
             const estadoActual = datosGrupo.configuraciones.antilink !== false;
-
+            
             if (!args[0]) {
                 return await sock.sendMessage(jid, { 
-                    text: `🛡️ *ANTILINK*\n\nEstado: ${estadoActual ? '✅ ON' : '❌ OFF'}\n\n*antilink on* - Activar\n*antilink off* - Desactivar` 
+                    text: `🛡️ Antilink: ${estadoActual ? '✅ ACTIVADO' : '❌ DESACTIVADO'}` 
                 }, { quoted: message });
             }
 
             const accion = args[0].toLowerCase();
             let nuevoEstado;
-            let mensajeEstado;
 
             if (accion === 'on' || accion === 'activar') {
                 nuevoEstado = true;
-                mensajeEstado = '✅ *ANTILINK ON*\n\n🛡️ Enlaces bloqueados\n🔗 YouTube, Instagram, TikTok\n🔗 Twitter, Pinterest, Facebook\n🚫 Otros eliminados';
             } else if (accion === 'off' || accion === 'desactivar') {
                 nuevoEstado = false;
-                mensajeEstado = '❌ *ANTILINK OFF*\n\n🔓 Todos enlaces permitidos';
             } else {
                 return await sock.sendMessage(jid, { 
-                    text: '💡 *antilink [on/off]*' 
+                    text: '💡 antilink on/off' 
                 }, { quoted: message });
             }
 
@@ -72,15 +69,12 @@ module.exports = {
             await gestorGrupos.guardarDatos(jid, datosGrupo);
 
             await sock.sendMessage(jid, { 
-                text: mensajeEstado 
+                text: nuevoEstado ? '✅ Antilink activado' : '❌ Antilink desactivado' 
             }, { quoted: message });
 
-            Logger.info(`✅ Antilink ${nuevoEstado ? 'ON' : 'OFF'} ${jid}`);
-
         } catch (error) {
-            Logger.error('Error antilink:', error);
             await sock.sendMessage(jid, { 
-                text: '❌ Error configurando' 
+                text: '❌ Error' 
             }, { quoted: message });
         }
     }
