@@ -237,7 +237,7 @@ class ManejadorConexion {
             }
         })
 
-        // ✅ AGREGAR AQUÍ EL MANEJADOR DE REACCIONES
+        /*// ✅ AGREGAR AQUÍ EL MANEJADOR DE REACCIONES
         this.sock.ev.on('messages.reaction', async (reactions) => {
             for (const reaction of reactions) {
                 try {
@@ -251,6 +251,7 @@ class ManejadorConexion {
                 }
             }
         });
+        */
 
         this.sock.ev.on('group-participants.update', async (update) => {
             try {

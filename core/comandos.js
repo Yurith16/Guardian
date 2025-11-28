@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const Logger = require('../utils/logger');
 const Config = require('../config/bot.json');
+const ManejadorPropietarios = require('../utils/propietarios');
 
 class GestorComandos {
     constructor() {
@@ -224,6 +225,21 @@ class GestorComandos {
 
             Logger.info(`🔍 Ejecutando comando: ${this.prefix}${comandoNombre} - Args: [${args.join(', ')}]`);
 
+            // ✅ VERIFICAR SI EL SOCKET ESTÁ ACTIVO
+            if (!socket || !socket.user) {
+                Logger.error('❌ Socket no disponible, no se puede ejecutar comando');
+
+                try {
+                    const jid = mensaje.key.remoteJid;
+                    await socket.sendMessage(jid, { 
+                        text: '🔌 *Bot reconectándose...*\n\nIntenta nuevamente en unos segundos.' 
+                    }, { quoted: mensaje });
+                } catch (sendError) {
+                    Logger.error('No se pudo enviar mensaje de error:', sendError);
+                }
+                return;
+            }
+
             // Buscar comando directo o alias
             let comando = this.comandos.get(comandoNombre);
 
@@ -299,7 +315,13 @@ class GestorComandos {
         } catch (error) {
             const mensajeError = Config.mensajes?.errores?.ejecucion || "💥 Error ejecutando comando:";
             Logger.error(`${mensajeError} ${error.message}`);
-            Logger.error('Stack trace:', error.stack);
+
+            // ✅ MEJORADO: Distinguir entre errores de conexión y otros errores
+            if (error.message.includes('Socket') || error.message.includes('connection') || error.message.includes('not connected')) {
+                Logger.error('🔌 Error de conexión detectado');
+            } else {
+                Logger.error('Stack trace:', error.stack);
+            }
 
             // Enviar mensaje de error al usuario
             try {
@@ -334,47 +356,7 @@ class GestorComandos {
     // ========== SISTEMA DE VERIFICACIÓN DE PERMISOS ==========
 
     tienePermisosOwner(numero, remitenteCompleto) {
-        // Verificar si está en el array de global owners
-        const globalOwners = Config.propietarios.global;
-
-        if (Array.isArray(globalOwners)) {
-            // Buscar en el array de global owners
-            const esGlobalOwner = globalOwners.some(owner => {
-                if (typeof owner === 'object') {
-                    // Nueva estructura: { numero: "504...", id: "504...@s.whatsapp.net" }
-                    return numero === owner.numero || remitenteCompleto === owner.id;
-                } else {
-                    // Estructura antigua: solo número
-                    return numero === owner;
-                }
-            });
-
-            if (esGlobalOwner) {
-                return true;
-            }
-        } else if (typeof globalOwners === 'object') {
-            // Estructura antigua: objeto único
-            if (numero === globalOwners.numero || remitenteCompleto === globalOwners.id) {
-                return true;
-            }
-        } else {
-            // Estructura muy antigua: solo string
-            if (numero === globalOwners) {
-                return true;
-            }
-        }
-
-        // Verificar subOwners (por número o ID completo)
-        const subOwners = Config.propietarios.subOwners || [];
-        return subOwners.some(owner => {
-            if (typeof owner === 'object') {
-                // Nueva estructura
-                return numero === owner.numero || remitenteCompleto === owner.id;
-            } else {
-                // Estructura antigua
-                return numero === owner;
-            }
-        });
+        return ManejadorPropietarios.esOwner(numero) || ManejadorPropietarios.esOwner(remitenteCompleto);
     }
 
     async tienePermisosAdmin(socket, mensaje) {

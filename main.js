@@ -1,4 +1,4 @@
-const { iniciarConexion } = require('./core/conexion');
+const { iniciarConexion, ManejadorConexion } = require('./core/conexion');
 const GestorComandos = require('./core/comandos');
 const Logger = require('./utils/logger');
 const Config = require('./config/bot.json');
@@ -16,6 +16,7 @@ class GuardianBot {
         this.config = Config;
         this.gestorComandos = new GestorComandos();
         this.socket = null;
+        this.manejadorConexion = null;
         this.estado = 'iniciando';
         this.metrics = {
             inicio: new Date(),
@@ -23,7 +24,6 @@ class GuardianBot {
             comandosEjecutados: 0
         };
 
-        // Manejo de señales para PM2
         this.configurarManejoSenales();
     }
 
@@ -36,10 +36,7 @@ class GuardianBot {
                 Logger.info('🚀 Ejecutando en PM2');
             }
 
-            console.log('🔍 Paso 1: Cargando configuración...');
-
-            // Cargar comandos primero
-            console.log('🔍 Paso 2: Cargando comandos...');
+            console.log('🔍 Cargando comandos...');
             await this.gestorComandos.cargarComandos();
 
             // Verificar si se cargaron comandos
@@ -50,15 +47,16 @@ class GuardianBot {
             }
 
             // Iniciar conexión WhatsApp
-            console.log('🔍 Paso 3: Iniciando conexión WhatsApp...');
-            this.socket = await iniciarConexion(this);
+            console.log('🔍 Iniciando conexión WhatsApp...');
+            this.manejadorConexion = new ManejadorConexion(this);
+            this.socket = await this.manejadorConexion.iniciar();
             this.estado = 'conectado';
 
             this.mostrarBanner();
             Logger.info('🚀 GuardianBot completamente operativo');
 
         } catch (error) {
-            console.error('💥 ERROR COMPLETO:', error);
+            console.error('💥 ERROR al iniciar:', error);
             Logger.error('💥 Error crítico al iniciar:', error);
 
             // En PM2, esperar antes de reiniciar
@@ -90,9 +88,8 @@ class GuardianBot {
 
     async cerrarGraceful() {
         try {
-            if (this.socket) {
-                Logger.info('🔌 Cerrando conexión WhatsApp...');
-                await this.socket.ws.close();
+            if (this.manejadorConexion) {
+                await this.manejadorConexion.cerrarConexion();
             }
             Logger.info('✅ GuardianBot cerrado correctamente');
             process.exit(0);
@@ -102,22 +99,28 @@ class GuardianBot {
         }
     }
 
-    // ✅ MÉTODO QUE FALTABA - Procesar mensajes recibidos
     async procesarMensaje(message) {
         try {
             this.metrics.mensajesProcesados++;
+            Logger.debug(`📨 Mensaje recibido [Total: ${this.metrics.mensajesProcesados}]`);
 
-            console.log(`📨 Mensaje recibido [Total: ${this.metrics.mensajesProcesados}]`);
+            // ✅ VERIFICAR SI EL SOCKET ESTÁ ACTIVO
+            if (!this.socket || !this.socket.user) {
+                Logger.warn('🔌 Socket no disponible, reconectando...');
 
-            // Pasar el mensaje al gestor de comandos para procesamiento
-            if (this.socket) {
-                await this.gestorComandos.ejecutarComando(this.socket, message);
-            } else {
-                console.log('❌ Socket no disponible para procesar mensaje');
+                try {
+                    this.socket = await this.manejadorConexion.iniciar();
+                    Logger.info('✅ Reconexión exitosa');
+                } catch (reconnectError) {
+                    Logger.error('❌ Error en reconexión automática:', reconnectError);
+                    return;
+                }
             }
 
+            // Pasar el mensaje al gestor de comandos
+            await this.gestorComandos.ejecutarComando(this.socket, message);
+
         } catch (error) {
-            console.error('❌ Error en procesarMensaje:', error.message);
             Logger.error('❌ Error procesando mensaje:', error);
         }
     }
@@ -127,15 +130,15 @@ class GuardianBot {
 
         // Obtener global owners count de forma segura
         let globalOwnersCount = 0;
-        if (Array.isArray(this.config.propietarios.global)) {
+        if (Array.isArray(this.config.propietarios?.global)) {
             globalOwnersCount = this.config.propietarios.global.length;
-        } else if (this.config.propietarios.global) {
+        } else if (this.config.propietarios?.global) {
             globalOwnersCount = 1;
         }
 
         // Obtener subOwners count de forma segura
         let subOwnersCount = 0;
-        if (Array.isArray(this.config.propietarios.subOwners)) {
+        if (Array.isArray(this.config.propietarios?.subOwners)) {
             subOwnersCount = this.config.propietarios.subOwners.length;
         }
 

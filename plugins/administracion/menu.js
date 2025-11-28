@@ -12,12 +12,10 @@ global.cmenua = '┃ ';
 // Función para obtener estadísticas del bot
 function obtenerEstadisticasBot() {
     try {
-        const bot = require('../../main');
-        const metrics = bot.obtenerMetrics();
         return {
-            mensajesProcesados: metrics.mensajesProcesados || 0,
-            comandosEjecutados: metrics.comandosEjecutados || 0,
-            inicio: metrics.inicio || new Date()
+            mensajesProcesados: 0,
+            comandosEjecutados: 0,
+            inicio: new Date()
         };
     } catch (error) {
         return {
@@ -205,59 +203,6 @@ function crearMenuError(mensaje) {
            `╰━━━━━━━━━━━━━━━━━━━━╯`;
 }
 
-// Sistema de imágenes para el menú
-const menuImages = [
-    "",
-    "", 
-    ""
-];
-
-const backupImages = [
-    "",
-    ""
-];
-
-function getRandomMenuImage() {
-    const randomIndex = Math.floor(Math.random() * menuImages.length);
-    return menuImages[randomIndex];
-}
-
-function getRandomBackupImage() {
-    const randomIndex = Math.floor(Math.random() * backupImages.length);
-    return backupImages[randomIndex];
-}
-
-// Función para enviar menú con imagen
-async function enviarMenuConImagen(sock, jid, message, texto, sender) {
-    let imageUrl = getRandomMenuImage();
-    let attempts = 0;
-    const maxAttempts = 2;
-
-    while (attempts < maxAttempts) {
-        try {
-            await sock.sendMessage(jid, {
-                image: { url: imageUrl },
-                caption: texto,
-                mentions: [sender]
-            }, { quoted: message });
-
-            Logger.info('✅ Menú con imagen enviado exitosamente');
-            return true;
-
-        } catch (error) {
-            attempts++;
-            Logger.debug(`❌ Error con imagen (Intento ${attempts}):`, error.message);
-
-            if (attempts < maxAttempts) {
-                imageUrl = getRandomBackupImage();
-            } else {
-                return false;
-            }
-        }
-    }
-    return false;
-}
-
 // Exportar el módulo
 module.exports = {
     command: ['menu', 'help', 'comandos', 'ayuda'],
@@ -279,17 +224,27 @@ module.exports = {
             Logger.info(`📋 Generando menú para ${jid}`);
             const menuTexto = await generarMenuCompleto(sender);
 
-            // Intentar enviar con imagen primero
-            const exito = await enviarMenuConImagen(sock, jid, message, menuTexto, sender);
-
-            if (!exito) {
-                // Fallback a texto plano
-                await sock.sendMessage(jid, { 
-                    text: menuTexto,
+            // ✅ INTENTAR ENVIAR CON IMAGEN DE URL
+            try {
+                await sock.sendMessage(jid, {
+                    image: { url: "https://files.catbox.moe/82y8uz.png" },
+                    caption: menuTexto,
                     mentions: [sender]
                 }, { quoted: message });
-                Logger.info('✅ Menú de texto enviado exitosamente');
+
+                Logger.info('✅ Menú con imagen enviado exitosamente');
+                return;
+
+            } catch (imageError) {
+                Logger.debug('❌ No se pudo enviar con imagen:', imageError.message);
             }
+
+            // ✅ SI FALLA LA IMAGEN, ENVIAR SOLO TEXTO
+            await sock.sendMessage(jid, { 
+                text: menuTexto,
+                mentions: [sender]
+            }, { quoted: message });
+            Logger.info('✅ Menú de texto enviado exitosamente');
 
         } catch (error) {
             Logger.error('💥 ERROR en comando menu:', error);
