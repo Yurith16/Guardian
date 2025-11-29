@@ -34,7 +34,7 @@ class ManejadorConexion {
         this.qrCode = null
         this.intentosSesionInvalida = 0
         this.maxIntentosSesionInvalida = 3
-        this.manejadorSeguridad = new ManejadorSeguridad() // ✅ INICIALIZAR AQUÍ
+        this.manejadorSeguridad = new ManejadorSeguridad()
     }
 
     // ✅ VERSIÓN SIMPLIFICADA - Solo verifica que existe creds.json
@@ -225,6 +225,11 @@ class ManejadorConexion {
                         await this.manejadorAntispam.verificarSpam(this.sock, message);
                     }
 
+                    // ✅ NUEVO: CONTAR ARCHIVOS AUTOMÁTICAMENTE
+                    if (jid.endsWith('@g.us') && !message.key.fromMe) {
+                        await this.contarArchivos(message, jid);
+                    }
+
                     // ========== PROCESAR COMANDOS DESPUÉS ==========
                     if (!message.key.fromMe && message.message) {
                         await this.guardianBot.procesarMensaje(message);
@@ -236,22 +241,6 @@ class ManejadorConexion {
                 }
             }
         })
-
-        /*// ✅ AGREGAR AQUÍ EL MANEJADOR DE REACCIONES
-        this.sock.ev.on('messages.reaction', async (reactions) => {
-            for (const reaction of reactions) {
-                try {
-                    // Importar y usar el manejador de reacciones del comando play
-                    const playHandler = require('../plugins/descargas/play.js');
-                    if (playHandler.handleReaction) {
-                        await playHandler.handleReaction(this.sock, reaction);
-                    }
-                } catch (error) {
-                    console.error('Error procesando reacción:', error);
-                }
-            }
-        });
-        */
 
         this.sock.ev.on('group-participants.update', async (update) => {
             try {
@@ -274,6 +263,54 @@ class ManejadorConexion {
         this.sock.ev.on('messages.update', () => {})
         this.sock.ev.on('message-receipt.update', () => {})
         this.sock.ev.on('presence.update', () => {})
+    }
+
+    // ✅ NUEVO: MÉTODO PARA CONTAR ARCHIVOS
+    async contarArchivos(message, jid) {
+        try {
+            const usuarioId = message.key.participant || message.key.remoteJid;
+
+            // Obtener gestor de grupos desde el bot principal
+            const gestorGrupos = this.guardianBot?.gestorComandos?.obtenerGestorGrupos();
+            if (!gestorGrupos) {
+                Logger.debug('Gestor de grupos no disponible');
+                return;
+            }
+
+            let tipoArchivo = null;
+
+            // Detectar tipo de archivo
+            if (message.message?.imageMessage) {
+                tipoArchivo = 'imagenes';
+            } else if (message.message?.videoMessage) {
+                tipoArchivo = 'videos';
+            } else if (message.message?.audioMessage) {
+                tipoArchivo = 'audios';
+            } else if (message.message?.documentMessage) {
+                const docType = message.message.documentMessage.mimetype || '';
+                if (docType.includes('pdf') || docType.includes('word') || docType.includes('excel') || docType.includes('text')) {
+                    tipoArchivo = 'documentos';
+                } else {
+                    tipoArchivo = 'otros';
+                }
+            } else if (message.message?.stickerMessage) {
+                tipoArchivo = 'sticker';
+            }
+
+            // Si es un archivo válido, registrar
+            if (tipoArchivo) {
+                const registrado = await gestorGrupos.registrarArchivo(jid, usuarioId, tipoArchivo);
+
+                if (registrado) {
+                    Logger.debug(`📁 Archivo registrado: ${usuarioId} - ${tipoArchivo}`);
+                } else if (tipoArchivo === 'sticker') {
+                    Logger.debug(`🚫 Sticker ignorado (límite alcanzado): ${usuarioId}`);
+                }
+            }
+
+        } catch (error) {
+            Logger.debug('Error contando archivo:', error.message);
+        }
     }
 
     // ✅ MÉTODO PARA EXTRAER TEXTO DE MENSAJES
