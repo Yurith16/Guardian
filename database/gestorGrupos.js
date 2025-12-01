@@ -11,31 +11,26 @@ class GestorGrupos {
     crearCarpetaDatos() {
         if (!fs.existsSync(this.datosPath)) {
             fs.mkdirSync(this.datosPath, { recursive: true });
-            Logger.info('✅ Carpeta datosgrupos creada');
         }
     }
 
-    // Obtener ruta del archivo JSON del grupo
     obtenerRutaGrupo(grupoId) {
         const nombreArchivo = `${grupoId.replace('@g.us', '')}.json`;
         return path.join(this.datosPath, nombreArchivo);
     }
 
-    // Crear/actualizar datos del grupo
     async inicializarGrupo(grupoId, grupoInfo = null) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
 
-            // Si el archivo no existe, crearlo
             if (!fs.existsSync(rutaArchivo)) {
                 const datosBase = {
                     grupo_id: grupoId,
                     nombre: grupoInfo?.subject || 'Sin nombre',
-                    descripcion: grupoInfo?.desc || '',
                     fecha_creacion: new Date().toISOString(),
                     fecha_actualizacion: new Date().toISOString(),
                     configuraciones: {
-                        antilink:true,
+                        antilink: true,
                         antibots: true,
                         bienvenidas: true,
                         despedidas: false
@@ -50,7 +45,6 @@ class GestorGrupos {
                 };
 
                 await this.guardarDatos(grupoId, datosBase);
-                Logger.info(`📁 Nuevo grupo registrado: ${grupoInfo?.subject || grupoId}`);
             }
 
             return await this.obtenerDatos(grupoId);
@@ -60,41 +54,29 @@ class GestorGrupos {
         }
     }
 
-    // Obtener lista de administradores
     obtenerAdmins(grupoInfo) {
         if (!grupoInfo?.participants) return [];
-
         return grupoInfo.participants
             .filter(p => p.admin)
             .map(p => p.id);
     }
 
-    // Obtener datos del grupo
     async obtenerDatos(grupoId) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
-
-            if (!fs.existsSync(rutaArchivo)) {
-                return null;
-            }
-
-            const datos = JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
-            return datos;
+            if (!fs.existsSync(rutaArchivo)) return null;
+            return JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
         } catch (error) {
             Logger.error('Error obteniendo datos del grupo:', error);
             return null;
         }
     }
 
-    // Guardar datos del grupo
     async guardarDatos(grupoId, datos) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
-
-            // Actualizar fecha de modificación
             datos.fecha_actualizacion = new Date().toISOString();
             datos.estadisticas.ultima_actividad = new Date().toISOString();
-
             fs.writeFileSync(rutaArchivo, JSON.stringify(datos, null, 2), 'utf8');
             return true;
         } catch (error) {
@@ -103,59 +85,148 @@ class GestorGrupos {
         }
     }
 
-    // Registrar mensaje de usuario
-    async registrarMensaje(grupoId, usuarioId, usuarioInfo = null) {
+    // ✅ NUEVO: Registrar archivo de usuario
+    async registrarArchivo(grupoId, usuarioId, tipoArchivo) {
         try {
             let datos = await this.obtenerDatos(grupoId);
-
             if (!datos) {
-                // Si no existe, crear datos básicos
                 datos = await this.inicializarGrupo(grupoId);
                 if (!datos) return false;
             }
+
+            // Obtener fecha actual para control de stickers
+            const fechaHoy = new Date().toDateString();
 
             // Inicializar usuario si no existe
             if (!datos.usuarios[usuarioId]) {
                 datos.usuarios[usuarioId] = {
                     numero: usuarioId.split('@')[0],
-                    mensajes_totales: 0,
-                    mensajes_semana: 0,
-                    ultimo_mensaje: new Date().toISOString(),
-                    primer_mensaje: new Date().toISOString(),
-                    es_admin: datos.administradores.includes(usuarioId)
+                    archivos: {
+                        imagenes: 0,
+                        videos: 0,
+                        audios: 0,
+                        documentos: 0,
+                        stickers: 0,
+                        otros: 0
+                    },
+                    total_archivos: 0,
+                    ultimo_archivo: new Date().toISOString(),
+                    primer_archivo: new Date().toISOString(),
+                    es_admin: datos.administradores.includes(usuarioId),
+                    // Control de stickers diarios
+                    stickers_diarios: {
+                        fecha: fechaHoy,
+                        contador: 0
+                    }
                 };
             }
 
-            // Actualizar estadísticas del usuario
-            datos.usuarios[usuarioId].mensajes_totales++;
-            datos.usuarios[usuarioId].ultimo_mensaje = new Date().toISOString();
+            const usuario = datos.usuarios[usuarioId];
 
-            // Actualizar estadísticas del grupo
-            datos.estadisticas.total_mensajes++;
-            datos.estadisticas.ultima_actividad = new Date().toISOString();
+            // ✅ CONTROL DE STICKERS (máximo 10 por día)
+            if (tipoArchivo === 'sticker') {
+                // Verificar si es nuevo día
+                if (usuario.stickers_diarios.fecha !== fechaHoy) {
+                    usuario.stickers_diarios.fecha = fechaHoy;
+                    usuario.stickers_diarios.contador = 0;
+                }
 
-            // Actualizar información del usuario si se proporciona
-            if (usuarioInfo) {
-                datos.usuarios[usuarioId].es_admin = usuarioInfo.admin || false;
+                // Si ya alcanzó el límite, ignorar
+                if (usuario.stickers_diarios.contador >= 10) {
+                    return false;
+                }
+
+                // Incrementar contador de stickers
+                usuario.stickers_diarios.contador++;
             }
 
-            await this.guardarDatos(grupoId, datos);
-            return true;
+            // Incrementar contador del tipo de archivo
+            if (usuario.archivos[tipoArchivo] !== undefined) {
+                usuario.archivos[tipoArchivo]++;
+                usuario.total_archivos++;
+                usuario.ultimo_archivo = new Date().toISOString();
+
+                // Actualizar estadísticas del grupo
+                datos.estadisticas.total_mensajes++;
+                datos.estadisticas.ultima_actividad = new Date().toISOString();
+
+                await this.guardarDatos(grupoId, datos);
+                return true;
+            }
+
+            return false;
         } catch (error) {
-            Logger.error('Error registrando mensaje:', error);
+            Logger.error('Error registrando archivo:', error);
             return false;
         }
     }
 
-    // Obtener estadísticas del grupo
+    // ✅ NUEVO: Obtener perfil de usuario
+    async obtenerPerfilUsuario(grupoId, usuarioId) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.usuarios[usuarioId]) {
+                return null;
+            }
+
+            const usuario = datos.usuarios[usuarioId];
+            const fechaHoy = new Date().toDateString();
+            const stickersHoy = usuario.stickers_diarios.fecha === fechaHoy ? usuario.stickers_diarios.contador : 0;
+
+            return {
+                numero: usuario.numero,
+                archivos: usuario.archivos,
+                total_archivos: usuario.total_archivos,
+                stickers_hoy: stickersHoy,
+                stickers_restantes: Math.max(0, 10 - stickersHoy),
+                ultimo_archivo: usuario.ultimo_archivo,
+                primer_archivo: usuario.primer_archivo,
+                es_admin: usuario.es_admin
+            };
+        } catch (error) {
+            Logger.error('Error obteniendo perfil usuario:', error);
+            return null;
+        }
+    }
+
+    // ✅ NUEVO: Obtener top de usuarios activos
+    async obtenerTopActivos(grupoId, limite = 20) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos) return [];
+
+            const usuariosArray = Object.entries(datos.usuarios)
+                .map(([usuarioId, usuario]) => ({
+                    usuario_id: usuarioId,
+                    numero: usuario.numero,
+                    total_archivos: usuario.total_archivos,
+                    archivos: usuario.archivos,
+                    ultimo_archivo: usuario.ultimo_archivo,
+                    es_admin: usuario.es_admin
+                }))
+                .sort((a, b) => b.total_archivos - a.total_archivos)
+                .slice(0, limite);
+
+            return usuariosArray;
+        } catch (error) {
+            Logger.error('Error obteniendo top activos:', error);
+            return [];
+        }
+    }
+
+    // Mantener métodos existentes para compatibilidad
+    async registrarMensaje(grupoId, usuarioId, usuarioInfo = null) {
+        // Método mantenido para compatibilidad
+        return true;
+    }
+
     async obtenerEstadisticasGrupo(grupoId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
             if (!datos) return null;
 
-            // Calcular usuario más activo
             const usuariosArray = Object.values(datos.usuarios);
-            const usuarioMasActivo = usuariosArray.sort((a, b) => b.mensajes_totales - a.mensajes_totales)[0];
+            const usuarioMasActivo = usuariosArray.sort((a, b) => b.total_archivos - a.total_archivos)[0];
 
             return {
                 grupo_id: datos.grupo_id,
@@ -165,7 +236,7 @@ class GestorGrupos {
                 usuarios_activos: usuariosArray.length,
                 usuario_mas_activo: usuarioMasActivo ? {
                     numero: usuarioMasActivo.numero,
-                    mensajes: usuarioMasActivo.mensajes_totales
+                    archivos: usuarioMasActivo.total_archivos
                 } : null,
                 fecha_creacion: datos.fecha_creacion,
                 ultima_actividad: datos.estadisticas.ultima_actividad
@@ -173,113 +244,6 @@ class GestorGrupos {
         } catch (error) {
             Logger.error('Error obteniendo estadísticas:', error);
             return null;
-        }
-    }
-
-    // Obtener ranking de usuarios
-    async obtenerRankingUsuarios(grupoId, limite = 10) {
-        try {
-            const datos = await this.obtenerDatos(grupoId);
-            if (!datos) return [];
-
-            const usuariosArray = Object.entries(datos.usuarios)
-                .map(([usuarioId, usuario]) => ({
-                    usuario_id: usuarioId,
-                    numero: usuario.numero,
-                    mensajes_totales: usuario.mensajes_totales,
-                    es_admin: usuario.es_admin,
-                    ultimo_mensaje: usuario.ultimo_mensaje
-                }))
-                .sort((a, b) => b.mensajes_totales - a.mensajes_totales)
-                .slice(0, limite);
-
-            return usuariosArray;
-        } catch (error) {
-            Logger.error('Error obteniendo ranking:', error);
-            return [];
-        }
-    }
-
-    // Obtener estadísticas de usuario específico
-    async obtenerEstadisticasUsuario(grupoId, usuarioId) {
-        try {
-            const datos = await this.obtenerDatos(grupoId);
-            if (!datos || !datos.usuarios[usuarioId]) {
-                return {
-                    mensajes_totales: 0,
-                    posicion_ranking: 0,
-                    es_admin: false
-                };
-            }
-
-            const usuario = datos.usuarios[usuarioId];
-            const ranking = await this.obtenerRankingUsuarios(grupoId, 1000);
-            const posicion = ranking.findIndex(u => u.usuario_id === usuarioId) + 1;
-
-            return {
-                numero: usuario.numero,
-                mensajes_totales: usuario.mensajes_totales,
-                posicion_ranking: posicion,
-                es_admin: usuario.es_admin,
-                primer_mensaje: usuario.primer_mensaje,
-                ultimo_mensaje: usuario.ultimo_mensaje,
-                total_usuarios: ranking.length
-            };
-        } catch (error) {
-            Logger.error('Error obteniendo stats usuario:', error);
-            return null;
-        }
-    }
-
-    // Actualizar información del grupo
-    async actualizarInfoGrupo(grupoId, grupoInfo) {
-        try {
-            let datos = await this.obtenerDatos(grupoId);
-
-            if (!datos) {
-                datos = await this.inicializarGrupo(grupoId, grupoInfo);
-            } else {
-                datos.nombre = grupoInfo.subject || datos.nombre;
-                datos.descripcion = grupoInfo.desc || datos.descripcion;
-                datos.estadisticas.total_usuarios = grupoInfo.participants?.length || datos.estadisticas.total_usuarios;
-                datos.administradores = this.obtenerAdmins(grupoInfo);
-
-                await this.guardarDatos(grupoId, datos);
-            }
-
-            return datos;
-        } catch (error) {
-            Logger.error('Error actualizando info grupo:', error);
-            return null;
-        }
-    }
-
-    // Listar todos los grupos registrados
-    async listarGrupos() {
-        try {
-            const archivos = fs.readdirSync(this.datosPath)
-                .filter(archivo => archivo.endsWith('.json'));
-
-            const grupos = [];
-
-            for (const archivo of archivos) {
-                const grupoId = archivo.replace('.json', '') + '@g.us';
-                const datos = await this.obtenerDatos(grupoId);
-                if (datos) {
-                    grupos.push({
-                        grupo_id: datos.grupo_id,
-                        nombre: datos.nombre,
-                        total_mensajes: datos.estadisticas.total_mensajes,
-                        total_usuarios: datos.estadisticas.total_usuarios,
-                        fecha_creacion: datos.fecha_creacion
-                    });
-                }
-            }
-
-            return grupos;
-        } catch (error) {
-            Logger.error('Error listando grupos:', error);
-            return [];
         }
     }
 }
