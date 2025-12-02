@@ -1,7 +1,7 @@
 const Logger = require('../../utils/logger');
 
 module.exports = {
-    command: ['speed', 'latencia','test'],
+    command: ['speed', 'latencia','tes'],
         description: 'Ver latencia del bot',
         isOwner: false,
         isGroup: true,      // ✅ Grupos
