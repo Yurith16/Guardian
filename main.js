@@ -104,24 +104,67 @@ class GuardianBot {
             this.metrics.mensajesProcesados++;
             Logger.debug(`📨 Mensaje recibido [Total: ${this.metrics.mensajesProcesados}]`);
 
-            // ✅ VERIFICAR SI EL SOCKET ESTÁ ACTIVO
-            if (!this.socket || !this.socket.user) {
-                Logger.warn('🔌 Socket no disponible, reconectando...');
-
-                try {
-                    this.socket = await this.manejadorConexion.iniciar();
-                    Logger.info('✅ Reconexión exitosa');
-                } catch (reconnectError) {
-                    Logger.error('❌ Error en reconexión automática:', reconnectError);
-                    return;
-                }
+            // ✅ VERIFICACIÓN ROBUSTA DEL SOCKET
+            let socket = this.obtenerSocketVerificado();
+            if (!socket) {
+                Logger.error('❌ No hay socket disponible, omitiendo mensaje');
+                return;
             }
 
             // Pasar el mensaje al gestor de comandos
-            await this.gestorComandos.ejecutarComando(this.socket, message);
+            await this.gestorComandos.ejecutarComando(socket, message);
 
         } catch (error) {
             Logger.error('❌ Error procesando mensaje:', error);
+            
+            // ✅ INTENTAR RECUPERAR CONEXIÓN SI ES ERROR DE SOCKET
+            if (error.message.includes('Connection Closed') || error.message.includes('socket') || error.message.includes('not connected')) {
+                Logger.warn('🔄 Error de conexión detectado, intentando recuperar...');
+                await this.reconectarSocket();
+            }
+        }
+    }
+
+    // ✅ MÉTODO PARA OBTENER SOCKET VERIFICADO
+    obtenerSocketVerificado() {
+        if (!this.manejadorConexion) {
+            Logger.error('❌ Manejador de conexión no disponible');
+            return null;
+        }
+
+        // Obtener socket verificado
+        const socket = this.manejadorConexion.obtenerSocket();
+        
+        if (!socket) {
+            Logger.warn('⚠️ Socket no disponible, intentando reconexión automática');
+            this.reconectarSocket();
+            return null;
+        }
+
+        return socket;
+    }
+
+    // ✅ RECONEXIÓN DE SOCKET
+    async reconectarSocket() {
+        try {
+            Logger.info('🔄 Intentando reconexión automática...');
+            
+            // Cerrar conexión anterior si existe
+            if (this.manejadorConexion) {
+                await this.manejadorConexion.cerrarConexion();
+            }
+            
+            // Crear nueva conexión
+            this.manejadorConexion = new ManejadorConexion(this);
+            this.socket = await this.manejadorConexion.iniciar();
+            this.estado = 'conectado';
+            
+            Logger.info('✅ Reconexión exitosa');
+            return true;
+        } catch (error) {
+            Logger.error('❌ Error en reconexión:', error);
+            this.estado = 'desconectado';
+            return false;
         }
     }
 
@@ -173,7 +216,7 @@ class GuardianBot {
 
     // Método para obtener el socket (útil para plugins)
     obtenerSocket() {
-        return this.socket;
+        return this.obtenerSocketVerificado();
     }
 
     // Método para obtener configuración
@@ -189,6 +232,11 @@ class GuardianBot {
     // Método para obtener gestor de comandos
     obtenerGestorComandos() {
         return this.gestorComandos;
+    }
+
+    // ✅ Método para obtener manejador de conexión
+    obtenerManejadorConexion() {
+        return this.manejadorConexion;
     }
 }
 

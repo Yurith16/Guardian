@@ -192,148 +192,220 @@ class GestorComandos {
     }
 
     async ejecutarComando(socket, mensaje) {
-        try {
-            const texto = this.obtenerTexto(mensaje);
-            const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
+    try {
+        const texto = this.obtenerTexto(mensaje);
+        const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
 
-            // ========== VERIFICACIÓN DE LISTA NEGRA ==========
-            if (await this.estaUsuarioBaneado(remitenteCompleto)) {
-                Logger.info(`🚫 Usuario baneado intentó usar comando: ${remitenteCompleto}`);
-                return; // No procesar el mensaje
-            }
-            // =================================================
+        // ========== VERIFICACIÓN DE LISTA NEGRA ==========
+        if (await this.estaUsuarioBaneado(remitenteCompleto)) {
+            Logger.info(`🚫 Usuario baneado intentó usar comando: ${remitenteCompleto}`);
+            return; // No procesar el mensaje
+        }
+        // =================================================
 
-            // DEBUG: Log del mensaje recibido
-            const remitente = this.obtenerRemitente(mensaje);
-            Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
+        // DEBUG: Log del mensaje recibido
+        const remitente = this.obtenerRemitente(mensaje);
+        Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
 
-            // ========== CONTADOR DE MENSAJES ==========
-            await this.contarMensaje(mensaje);
-            // ==========================================
+        // ========== CONTADOR DE MENSAJES ==========
+        await this.contarMensaje(mensaje);
+        // ==========================================
 
-            // Solo procesar si es un comando (empieza con prefix)
-            if (!texto.startsWith(this.prefix)) {
-                return;
-            }
+        // Solo procesar si es un comando (empieza con prefix)
+        if (!texto.startsWith(this.prefix)) {
+            return;
+        }
 
-            const args = texto.slice(this.prefix.length).trim().split(/ +/);
-            const comandoNombre = args.shift().toLowerCase();
+        const args = texto.slice(this.prefix.length).trim().split(/ +/);
+        const comandoNombre = args.shift().toLowerCase();
 
-            if (!comandoNombre) {
-                return; // Solo el prefix, ignorar
-            }
+        if (!comandoNombre) {
+            return; // Solo el prefix, ignorar
+        }
 
-            Logger.info(`🔍 Ejecutando comando: ${this.prefix}${comandoNombre} - Args: [${args.join(', ')}]`);
+        Logger.info(`🔍 Ejecutando comando: ${this.prefix}${comandoNombre} - Args: [${args.join(', ')}]`);
 
-            // ✅ VERIFICAR SI EL SOCKET ESTÁ ACTIVO
-            if (!socket || !socket.user) {
-                Logger.error('❌ Socket no disponible, no se puede ejecutar comando');
+        // ✅ VERIFICACIÓN ROBUSTA DEL SOCKET - CORREGIDA
+        if (!socket) {
+            Logger.error('❌ Socket no disponible para ejecutar comando');
 
-                try {
+            try {
+                // ✅ OBTENER SOCKET FRESCO DESDE EL BOT
+                const bot = require('../main');
+                const socketActual = bot.obtenerSocket();
+                
+                if (socketActual) {
                     const jid = mensaje.key.remoteJid;
-                    await socket.sendMessage(jid, { 
-                        text: '🔌 *Bot reconectándose...*\n\nIntenta nuevamente en unos segundos.' 
+                    await socketActual.sendMessage(jid, { 
+                        text: '⚠️ *Reconectando...*\n\nEl bot se está reconectando automáticamente.' 
                     }, { quoted: mensaje });
-                } catch (sendError) {
-                    Logger.error('No se pudo enviar mensaje de error:', sendError);
                 }
-                return;
+            } catch (sendError) {
+                Logger.debug('No se pudo enviar mensaje de reconexión:', sendError.message);
             }
+            return;
+        }
 
-            // Buscar comando directo o alias
-            let comando = this.comandos.get(comandoNombre);
+        // ✅ VERIFICACIÓN ADICIONAL DE ESTADO DEL SOCKET
+        try {
+            // Intentar un ping simple para verificar si el socket está activo
+            socket.ev.emit('connection.update', { connection: 'open' });
+        } catch (socketError) {
+            Logger.error('❌ Socket inactivo, omitiendo comando:', socketError.message);
+            return;
+        }
 
-            if (!comando && this.aliases.has(comandoNombre)) {
-                const comandoPrincipal = this.aliases.get(comandoNombre);
-                comando = this.comandos.get(comandoPrincipal);
-                Logger.debug(`🔤 Usando alias: ${comandoNombre} -> ${comandoPrincipal}`);
-            }
+        // Buscar comando directo o alias
+        let comando = this.comandos.get(comandoNombre);
 
-            if (!comando) {
-                Logger.debug(`❌ Comando no encontrado: ${comandoNombre}`);
+        if (!comando && this.aliases.has(comandoNombre)) {
+            const comandoPrincipal = this.aliases.get(comandoNombre);
+            comando = this.comandos.get(comandoPrincipal);
+            Logger.debug(`🔤 Usando alias: ${comandoNombre} -> ${comandoPrincipal}`);
+        }
 
-                // Opcional: Enviar mensaje de comando no encontrado
+        if (!comando) {
+            Logger.debug(`❌ Comando no encontrado: ${comandoNombre}`);
+
+            // Opcional: Enviar mensaje de comando no encontrado
+            try {
                 const jid = mensaje.key.remoteJid;
                 const mensajeNoEncontrado = Config.mensajes?.comandos?.noEncontrado || "❌ Comando no encontrado";
                 await socket.sendMessage(jid, { 
                     text: `${mensajeNoEncontrado}\nUsa ${this.prefix}menu para ver los comandos disponibles.` 
                 }, { quoted: mensaje });
-                return;
+            } catch (sendError) {
+                Logger.debug('No se pudo enviar mensaje de comando no encontrado');
             }
+            return;
+        }
 
-            // ========== SISTEMA DE PERMISOS MEJORADO ==========
+        // ========== SISTEMA DE PERMISOS MEJORADO ==========
 
-            // 1. Verificar permisos de owner
-            if (comando.isOwner && !this.tienePermisosOwner(remitente, remitenteCompleto)) {
-                const mensajeSinPermisos = Config.mensajes?.comandos?.sinPermisos || "⛔ No tienes permisos para usar este comando";
-                Logger.warn(`🚫 Intento de uso sin permisos (Owner): ${comandoNombre} por ${remitente}`);
+        // 1. Verificar permisos de owner
+        if (comando.isOwner && !this.tienePermisosOwner(remitente, remitenteCompleto)) {
+            const mensajeSinPermisos = Config.mensajes?.comandos?.sinPermisos || "⛔ No tienes permisos para usar este comando";
+            Logger.warn(`🚫 Intento de uso sin permisos (Owner): ${comandoNombre} por ${remitente}`);
 
+            try {
                 const jid = mensaje.key.remoteJid;
                 await socket.sendMessage(jid, { text: mensajeSinPermisos }, { quoted: mensaje });
-                return;
+            } catch (sendError) {
+                Logger.debug('No se pudo enviar mensaje de permisos');
             }
+            return;
+        }
 
-            // 2. Verificar permisos de admin en grupos
-            if (comando.isAdmin && this.esGrupo(mensaje)) {
-                if (!await this.tienePermisosAdmin(socket, mensaje)) {
-                    const mensajeSinPermisos = "⛔ Solo los administradores pueden usar este comando";
-                    Logger.warn(`🚫 Intento de uso sin permisos (Admin): ${comandoNombre} por ${remitente}`);
+        // 2. Verificar permisos de admin en grupos
+        if (comando.isAdmin && this.esGrupo(mensaje)) {
+            if (!await this.tienePermisosAdmin(socket, mensaje)) {
+                const mensajeSinPermisos = "⛔ Solo los administradores pueden usar este comando";
+                Logger.warn(`🚫 Intento de uso sin permisos (Admin): ${comandoNombre} por ${remitente}`);
 
+                try {
                     const jid = mensaje.key.remoteJid;
                     await socket.sendMessage(jid, { text: mensajeSinPermisos }, { quoted: mensaje });
-                    return;
+                } catch (sendError) {
+                    Logger.debug('No se pudo enviar mensaje de permisos admin');
                 }
+                return;
             }
+        }
 
-            // 3. Verificar si es grupo y el comando está permitido
-            if (this.esGrupo(mensaje) && comando.isGroup === false) {
+        // 3. Verificar si es grupo y el comando está permitido
+        if (this.esGrupo(mensaje) && comando.isGroup === false) {
+            try {
                 const jid = mensaje.key.remoteJid;
                 await socket.sendMessage(jid, { 
                     text: "❌ Este comando solo puede usarse en chats privados." 
                 }, { quoted: mensaje });
-                return;
+            } catch (sendError) {
+                Logger.debug('No se pudo enviar mensaje de restricción de grupo');
             }
+            return;
+        }
 
-            // 4. Verificar si es privado y el comando está permitido
-            if (!this.esGrupo(mensaje) && comando.isPrivate === false) {
+        // 4. Verificar si es privado y el comando está permitido
+        if (!this.esGrupo(mensaje) && comando.isPrivate === false) {
+            try {
                 const jid = mensaje.key.remoteJid;
                 await socket.sendMessage(jid, { 
                     text: "❌ Este comando solo puede usarse en grupos." 
                 }, { quoted: mensaje });
-                return;
-            }
-
-            // ========== EJECUCIÓN DEL COMANDO ==========
-
-            // Ejecutar comando
-            Logger.info(`⚡ Ejecutando: ${comandoNombre} | Usuario: ${remitente} | Categoría: ${comando.category}`);
-
-            await comando.execute(socket, mensaje, args);
-
-            Logger.info(`✅ Comando ejecutado: ${comandoNombre}`);
-
-        } catch (error) {
-            const mensajeError = Config.mensajes?.errores?.ejecucion || "💥 Error ejecutando comando:";
-            Logger.error(`${mensajeError} ${error.message}`);
-
-            // ✅ MEJORADO: Distinguir entre errores de conexión y otros errores
-            if (error.message.includes('Socket') || error.message.includes('connection') || error.message.includes('not connected')) {
-                Logger.error('🔌 Error de conexión detectado');
-            } else {
-                Logger.error('Stack trace:', error.stack);
-            }
-
-            // Enviar mensaje de error al usuario
-            try {
-                const jid = mensaje.key.remoteJid;
-                await socket.sendMessage(jid, { 
-                    text: "❌ Ocurrió un error al ejecutar el comando. Intenta más tarde." 
-                }, { quoted: mensaje });
             } catch (sendError) {
-                Logger.error('Error enviando mensaje de error:', sendError);
+                Logger.debug('No se pudo enviar mensaje de restricción de privado');
+            }
+            return;
+        }
+
+        // ========== EJECUCIÓN DEL COMANDO ==========
+
+        // Ejecutar comando
+        Logger.info(`⚡ Ejecutando: ${comandoNombre} | Usuario: ${remitente} | Categoría: ${comando.category}`);
+
+        // ✅ EJECUTAR CON MANEJO DE ERRORES ESPECÍFICO PARA CONEXIÓN
+        try {
+            await comando.execute(socket, mensaje, args);
+            Logger.info(`✅ Comando ejecutado: ${comandoNombre}`);
+        } catch (errorEjecucion) {
+            // ✅ DETECTAR SI ES ERROR DE CONEXIÓN
+            if (errorEjecucion.message.includes('Connection Closed') || 
+                errorEjecucion.message.includes('socket') || 
+                errorEjecucion.message.includes('not connected') ||
+                errorEjecucion.message.includes('ENOTFOUND')) {
+                
+                Logger.error('🔌 Error de conexión en comando:', errorEjecucion.message);
+                
+                try {
+                    // ✅ INTENTAR OBTENER NUEVO SOCKET
+                    const bot = require('../main');
+                    const nuevoSocket = bot.obtenerSocket();
+                    
+                    if (nuevoSocket) {
+                        const jid = mensaje.key.remoteJid;
+                        await nuevoSocket.sendMessage(jid, { 
+                            text: '🔌 *Conexión restablecida*\n\nEl bot se ha reconectado automáticamente.' 
+                        }, { quoted: mensaje });
+                    }
+                } catch (reconectarError) {
+                    Logger.error('No se pudo notificar reconexión:', reconectarError.message);
+                }
+            } else {
+                // Otro tipo de error
+                throw errorEjecucion;
             }
         }
+
+    } catch (error) {
+        const mensajeError = Config.mensajes?.errores?.ejecucion || "💥 Error ejecutando comando:";
+        Logger.error(`${mensajeError} ${error.message}`);
+
+        // ✅ DETECCIÓN MEJORADA DE ERRORES DE CONEXIÓN
+        if (error.message.includes('Socket') || 
+            error.message.includes('connection') || 
+            error.message.includes('not connected') ||
+            error.message.includes('ENOTFOUND') ||
+            error.message.includes('ECONNREFUSED')) {
+            
+            Logger.error('🔌 Error de conexión detectado en comando ejecutar');
+            
+            // ✅ NO INTENTAR ENVIAR MENSAJE SI LA CONEXIÓN ESTÁ CAÍDA
+            return;
+        } else {
+            Logger.error('Stack trace:', error.stack);
+        }
+
+        // Enviar mensaje de error al usuario (solo si no es error de conexión)
+        try {
+            const jid = mensaje.key.remoteJid;
+            await socket.sendMessage(jid, { 
+                text: "❌ Ocurrió un error al ejecutar el comando. Intenta más tarde." 
+            }, { quoted: mensaje });
+        } catch (sendError) {
+            Logger.debug('No se pudo enviar mensaje de error');
+        }
     }
+}
 
     // ========== CONTADOR DE MENSAJES ==========
     async contarMensaje(mensaje) {

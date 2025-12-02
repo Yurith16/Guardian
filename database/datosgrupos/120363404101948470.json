@@ -1,0 +1,39 @@
+{
+  "grupo_id": "120363404101948470@g.us",
+  "nombre": "Sin nombre",
+  "fecha_creacion": "2025-12-01T18:31:05.228Z",
+  "fecha_actualizacion": "2025-12-01T18:31:05.229Z",
+  "configuraciones": {
+    "antilink": true,
+    "antibots": true,
+    "bienvenidas": true,
+    "despedidas": false
+  },
+  "estadisticas": {
+    "total_mensajes": 1,
+    "total_usuarios": 0,
+    "ultima_actividad": "2025-12-01T18:31:05.229Z"
+  },
+  "usuarios": {
+    "92986511769835@lid": {
+      "numero": "92986511769835",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 1,
+      "ultimo_archivo": "2025-12-01T18:31:05.229Z",
+      "primer_archivo": "2025-12-01T18:31:05.229Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      }
+    }
+  },
+  "administradores": []
+}

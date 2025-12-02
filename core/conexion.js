@@ -35,6 +35,26 @@ class ManejadorConexion {
         this.intentosSesionInvalida = 0
         this.maxIntentosSesionInvalida = 3
         this.manejadorSeguridad = new ManejadorSeguridad()
+        this.lastActivity = Date.now()
+        
+        // ✅ Iniciar heartbeat automático
+        this.iniciarHeartbeat()
+    }
+
+    // ✅ HEARTBEAT AUTOMÁTICO
+    iniciarHeartbeat() {
+        setInterval(() => {
+            if (this.sock && this.estaConectado) {
+                try {
+                    this.sock.sendPresenceUpdate('available')
+                    this.lastActivity = Date.now()
+                } catch (error) {
+                    Logger.error('💔 Heartbeat falló:', error.message)
+                    this.estaConectado = false
+                    this.reconectarAutomatico()
+                }
+            }
+        }, 60000) // 1 minuto
     }
 
     // ✅ VERSIÓN SIMPLIFICADA - Solo verifica que existe creds.json
@@ -163,6 +183,7 @@ class ManejadorConexion {
                 this.intentosSesionInvalida = 0
                 reconectando = false
                 this.qrCode = null
+                this.lastActivity = Date.now()
 
                 console.log(chalk.green('🎉 ¡Conectado a WhatsApp!'))
                 console.log(chalk.cyan(`👤 Usuario: ${this.sock.user?.name || 'Bot'}`))
@@ -361,6 +382,14 @@ class ManejadorConexion {
         setTimeout(() => this.iniciar(), delay)
     }
 
+    // ✅ RECONEXIÓN AUTOMÁTICA
+    reconectarAutomatico() {
+        if (!this.estaConectado) {
+            console.log(chalk.yellow('🔄 Detección de conexión caída - Reconectando automáticamente...'))
+            this.reconectar()
+        }
+    }
+
     async cerrarConexion() {
         console.log(chalk.yellow('🛑 Cerrando conexión...'))
         this.estaConectado = false
@@ -375,12 +404,28 @@ class ManejadorConexion {
         }
     }
 
+    // ✅ SOCKET VERIFICADO - EVITA CONNECTION CLOSED
     obtenerSocket() {
-        return this.sock
+        if (!this.sock || !this.estaConectado) {
+            Logger.warn('⚠️ Socket no disponible, reconectando...')
+            this.reconectarAutomatico()
+            return null
+        }
+        
+        // Verificar si el socket sigue activo
+        try {
+            this.sock.sendPresenceUpdate('available')
+            return this.sock
+        } catch (error) {
+            Logger.error('❌ Socket inactivo:', error.message)
+            this.estaConectado = false
+            this.reconectarAutomatico()
+            return null
+        }
     }
 
     obtenerEstadoConexion() {
-        return this.estaConectado
+        return this.estaConectado && this.sock !== null
     }
 }
 
