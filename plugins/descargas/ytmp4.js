@@ -267,10 +267,41 @@ function sanitizeFileName(name) {
     return name.replace(/[\\/:*?"<>|]/g, '_').substring(0, 64);
 }
 
+// Función para crear barra de progreso (estilo LOADING...)
+function crearBarraProgreso(progreso = 0) {
+    const totalBarras = 20; // 20 bloques para más detalle
+    const barrasLlenas = Math.round((progreso / 100) * totalBarras);
+    const barrasVacias = totalBarras - barrasLlenas;
+    
+    // Usa bloques sólidos y bloques claros
+    const barra = '█'.repeat(barrasLlenas) + '░'.repeat(barrasVacias);
+    return `L O A D I N G . . .\n[${barra}] ${progreso}%`;
+}
+
+// Función para simular y actualizar el progreso en el chat
+async function updateProgress(sock, jid, messageKey, start, end, step, delayMs, statusText = 'Procesando video...') {
+    for (let i = start; i <= end; i += step) {
+        // Asegura que no nos pasemos del valor final
+        let currentProgress = i;
+        if (currentProgress > end) currentProgress = end;
+
+        try {
+            await sock.sendMessage(jid, {
+                text: `📥 ${statusText}\n${crearBarraProgreso(currentProgress)}`,
+                edit: messageKey
+            });
+        } catch (e) {
+            // Si no se puede editar el mensaje, continuamos
+            break; 
+        }
+        await delay(delayMs);
+    }
+}
+
 // Comando principal
 module.exports = {
     command: ['play2', 'ytmp4', 'video'],
-    description: 'Descargar video de YouTube',
+    description: 'Descargar video de YouTube con barra de progreso',
     isOwner: false,
     isGroup: true,
     isPrivate: true,
@@ -288,14 +319,7 @@ module.exports = {
                 return;
             }
 
-            // 1. Solo este mensaje al principio
-            await sock.sendMessage(jid, { 
-                text: '🔍 Buscando video...\n📥 Procesando solicitud...'
-            }, { quoted: message });
-
-            await delay(REQUEST_DELAY);
-
-            // 2. Obtener información del video
+            // 1. Obtener información del video primero
             const videoInfo = await obtenerInformacionVideo(query);
             if (!videoInfo.success) {
                 await sock.sendMessage(jid, { 
@@ -306,15 +330,28 @@ module.exports = {
 
             const video = videoInfo.data;
 
-            // 3. Descargar video con sistema de fallback
+            // 2. Enviar mensaje inicial de barra de carga (0%)
+            let processingMessage = await sock.sendMessage(jid, { 
+                text: '🔍 Buscando video...\n' + crearBarraProgreso(0) 
+            }, { quoted: message });
+            
+            // 3. Simular progreso de búsqueda de info (1% a 25%)
+            await updateProgress(sock, jid, processingMessage.key, 1, 25, 2, 100, 'Buscando información...');
+
+            // 4. Simular progreso de la API de descarga (26% a 50%)
+            await updateProgress(sock, jid, processingMessage.key, 26, 50, 3, 100, 'Preparando descarga...');
+
+            // 5. Descargar video con sistema de fallback
             const downloadResult = await descargarVideoConFallback(video.url, video.duration.seconds);
 
             if (!downloadResult?.url) {
                 throw new Error('No se pudo obtener el video');
             }
 
-            // 4. Descargar el video como buffer
-            const videoResponse = await axios({
+            // 6. Descargar el video como buffer y simular progreso (51% a 80%)
+            
+            // Preparamos la descarga real (Promise)
+            const videoPromise = axios({
                 method: 'GET',
                 url: downloadResult.url,
                 responseType: 'arraybuffer',
@@ -323,11 +360,19 @@ module.exports = {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                 }
             });
+            
+            // Preparamos la simulación de progreso (Promise)
+            const progressSimulation = updateProgress(sock, jid, processingMessage.key, 51, 80, 3, 300, 'Descargando video...');
+            
+            // Ejecutamos ambos en paralelo
+            const [videoResponse] = await Promise.all([videoPromise, progressSimulation]);
 
             const videoBuffer = Buffer.from(videoResponse.data);
             const fileSizeMB = (videoBuffer.length / (1024 * 1024)).toFixed(1);
             
-            // 5. Descargar thumbnail
+            // 7. Descargar thumbnail y simular progreso (81% a 99%)
+            await updateProgress(sock, jid, processingMessage.key, 81, 99, 1, 300, 'Preparando envío...');
+
             let thumbnailBuffer = null;
             try {
                 const thumbnailResponse = await axios({
@@ -341,7 +386,20 @@ module.exports = {
                 // Si falla el thumbnail, continuar sin él
             }
 
-            // 6. ✅ Siempre enviar como documento (como solicitaste)
+            // 8. Enviar mensaje final ANTES de enviar el video
+            try {
+                await sock.sendMessage(jid, {
+                    text: '✅ ¡Descarga completa! Enviando video...\n' + crearBarraProgreso(100),
+                    edit: processingMessage.key
+                });
+            } catch (e) {
+                // Si no se puede editar, continuar
+            }
+
+            // Pequeña pausa para que se vea el mensaje final
+            await delay(1000);
+
+            // 9. ✅ Siempre enviar como documento
             const messageOptions = {
                 document: videoBuffer,
                 fileName: `${sanitizeFileName(video.title)}.mp4`,
@@ -356,8 +414,11 @@ module.exports = {
                 messageOptions.jpegThumbnail = thumbnailBuffer;
             }
 
-            // 7. Enviar video respondiendo al mensaje original
+            // 10. Enviar video respondiendo al mensaje original
             await sock.sendMessage(jid, messageOptions, { quoted: message });
+
+            // 11. NO ELIMINAR el mensaje de la barra de carga (se queda visible)
+            // Se queda el mensaje con 100% como finalización
 
             Logger.info(`✅ Video enviado: ${video.title} (${downloadResult.quality}, ${fileSizeMB}MB)`);
 

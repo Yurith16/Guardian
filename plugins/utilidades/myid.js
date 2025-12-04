@@ -1,7 +1,7 @@
 const Logger = require('../../utils/logger');
 
 module.exports = {
-    command: ['myid', 'id', 'miid'],
+    command: ['myid', 'aidi0', 'miid'],
     description: 'Obtener tu ID de usuario',
     isGroup: true,
     isPrivate: true,

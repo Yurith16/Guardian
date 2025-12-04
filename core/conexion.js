@@ -1,8 +1,10 @@
+//  core/conexion.js
 const fs = require('fs')
 const chalk = require('chalk')
 const path = require('path')
 const qrcode = require('qrcode-terminal')
 const ManejadorAntispam = require('./seguridad_antispam');
+const ManejadorMute = require('./seguridad_mute');
 const ManejadorEventosGrupo = require('./manejador_eventos');
 const {
     default: makeWASocket,
@@ -27,6 +29,7 @@ class ManejadorConexion {
         this.guardianBot = guardianBot
         this.sock = null
         this.manejadorAntispam = new ManejadorAntispam();
+        this.manejadorMute = new ManejadorMute();
         this.manejadorEventos = new ManejadorEventosGrupo();
         this.estaConectado = false
         this.reconexionIntentos = 0
@@ -240,6 +243,12 @@ class ManejadorConexion {
                             console.log(chalk.red('❌ manejadorSeguridad no está disponible'));
                         }
                     }
+
+                    // ========== VERIFICACIÓN MUTE ==========
+                if (jid.endsWith('@g.us')) {
+                    // Verificar si el usuario está silenciado
+                    await this.manejadorMute.verificarMute(this.sock, message);
+                }
 
                     // ========== VERIFICACIÓN ANTISPAM ==========
                     if (jid.endsWith('@g.us')) {

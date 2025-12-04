@@ -214,10 +214,41 @@ function sanitizeFileName(name) {
     return name.replace(/[\\/:*?"<>|]/g, '_').substring(0, 64);
 }
 
+// Función para crear barra de progreso (estilo LOADING...)
+function crearBarraProgreso(progreso = 0) {
+    const totalBarras = 20; // 20 bloques para más detalle
+    const barrasLlenas = Math.round((progreso / 100) * totalBarras);
+    const barrasVacias = totalBarras - barrasLlenas;
+    
+    // Usa bloques sólidos y bloques claros
+    const barra = '█'.repeat(barrasLlenas) + '░'.repeat(barrasVacias);
+    return `L O A D I N G . . .\n[${barra}] ${progreso}%`;
+}
+
+// Función para simular y actualizar el progreso en el chat
+async function updateProgress(sock, jid, messageKey, start, end, step, delayMs, statusText = 'Procesando audio...') {
+    for (let i = start; i <= end; i += step) {
+        // Asegura que no nos pasemos del valor final
+        let currentProgress = i;
+        if (currentProgress > end) currentProgress = end;
+
+        try {
+            await sock.sendMessage(jid, {
+                text: `📥 ${statusText}\n${crearBarraProgreso(currentProgress)}`,
+                edit: messageKey
+            });
+        } catch (e) {
+            // Si no se puede editar el mensaje, continuamos
+            break; 
+        }
+        await delay(delayMs);
+    }
+}
+
 // Comando principal
 module.exports = {
     command: ['play', 'ytmp3', 'audio'],
-    description: 'Descargar audio de YouTube',
+    description: 'Descargar audio de YouTube con barra de progreso',
     isOwner: false,
     isGroup: true,
     isPrivate: true,
@@ -235,14 +266,7 @@ module.exports = {
                 return;
             }
 
-            // 1. Solo este mensaje al principio
-            await sock.sendMessage(jid, { 
-                text: '🔍 Buscando música...\n📥 Procesando solicitud...'
-            }, { quoted: message });
-
-            await delay(REQUEST_DELAY);
-
-            // 2. Obtener información del video
+            // 1. Obtener información del video primero
             const videoInfo = await obtenerInformacionVideo(query);
             if (!videoInfo.success) {
                 await sock.sendMessage(jid, { 
@@ -253,27 +277,7 @@ module.exports = {
 
             const video = videoInfo.data;
 
-            // 3. Descargar audio
-            const downloader = new SavetubeDownloader();
-            const downloadResult = await downloader.downloadAudio(video.url);
-
-            if (!downloadResult.success) {
-                throw new Error(downloadResult.error);
-            }
-
-            const audioData = downloadResult.data;
-
-            // 4. Descargar el audio como buffer
-            const audioResponse = await axios({
-                method: 'GET',
-                url: audioData.downloadUrl,
-                responseType: 'arraybuffer',
-                timeout: DOWNLOAD_TIMEOUT
-            });
-
-            const audioBuffer = Buffer.from(audioResponse.data);
-            
-            // 5. Descargar thumbnail
+            // 2. Enviar imagen de portada con mensaje "Procesando pedido..." en mensaje separado
             let thumbnailBuffer = null;
             try {
                 const thumbnailResponse = await axios({
@@ -283,16 +287,82 @@ module.exports = {
                     timeout: 10000
                 });
                 thumbnailBuffer = Buffer.from(thumbnailResponse.data);
+                
+                // Enviar imagen en mensaje separado
+                await sock.sendMessage(jid, {
+                    image: thumbnailBuffer,
+                    caption: '📥 Procesando pedido...'
+                }, { quoted: message });
+                
             } catch (error) {
-                // Si falla el thumbnail, continuar sin él
+                // Si falla la imagen, enviar solo texto
+                await sock.sendMessage(jid, { 
+                    text: '📥 Procesando pedido...'
+                }, { quoted: message });
             }
 
-            // 6. Determinar si es mix (más de 10 minutos)
+            await delay(500);
+
+            // 3. Enviar mensaje inicial de barra de carga (0%)
+            let processingMessage = await sock.sendMessage(jid, { 
+                text: '🔍 Buscando música...\n' + crearBarraProgreso(0) 
+            }, { quoted: message });
+            
+            // 4. Simular progreso de búsqueda de info (1% a 25%)
+            await updateProgress(sock, jid, processingMessage.key, 1, 25, 2, 100, 'Buscando información...');
+
+            // 5. Simular progreso de la API de descarga (26% a 50%)
+            await updateProgress(sock, jid, processingMessage.key, 26, 50, 3, 100, 'Preparando descarga...');
+
+            // 6. Descargar audio (API Savetube)
+            const downloader = new SavetubeDownloader();
+            const downloadResult = await downloader.downloadAudio(video.url);
+
+            if (!downloadResult.success) {
+                throw new Error(downloadResult.error);
+            }
+
+            const audioData = downloadResult.data;
+
+            // 7. Descargar el audio como buffer (Axios) y simular progreso (51% a 80%)
+            
+            // Preparamos la descarga real (Promise)
+            const audioPromise = axios({
+                method: 'GET',
+                url: audioData.downloadUrl,
+                responseType: 'arraybuffer',
+                timeout: DOWNLOAD_TIMEOUT
+            });
+            
+            // Preparamos la simulación de progreso (Promise)
+            const progressSimulation = updateProgress(sock, jid, processingMessage.key, 51, 80, 3, 300, 'Descargando audio...');
+            
+            // Ejecutamos ambos en paralelo
+            const [audioResponse] = await Promise.all([audioPromise, progressSimulation]);
+
+            const audioBuffer = Buffer.from(audioResponse.data);
+            
+            // 8. Simular progreso de envío/carga a WhatsApp (81% a 99%)
+            await updateProgress(sock, jid, processingMessage.key, 81, 99, 1, 300, 'Subiendo a WhatsApp...');
+
+            // 9. Enviar mensaje final ANTES de enviar el audio
+            try {
+                await sock.sendMessage(jid, {
+                    text: '✅ ¡Descarga completa! Enviando audio...\n' + crearBarraProgreso(100),
+                    edit: processingMessage.key
+                });
+            } catch (e) {
+                // Si no se puede editar, continuar
+            }
+
+            // Pequeña pausa para que se vea el mensaje final
+            await delay(1000);
+
+            // 10. Determinar si es mix (más de 10 minutos) y enviar audio
             const shouldSendAsDoc = video.duration.seconds > MIX_DURATION_LIMIT;
 
-            // ✅ CORREGIDO: Añadir { quoted: message } para que responda
             if (shouldSendAsDoc) {
-                // Enviar como documento
+                // Enviar como documento (para mixes largos)
                 const messageOptions = {
                     document: audioBuffer,
                     fileName: `${sanitizeFileName(video.title)}.mp3`,
@@ -306,7 +376,7 @@ module.exports = {
 
                 await sock.sendMessage(jid, messageOptions, { quoted: message });
             } else {
-                // Enviar como audio normal
+                // Enviar como audio normal con mejor presentación
                 const messageOptions = {
                     audio: audioBuffer,
                     fileName: `${sanitizeFileName(video.title)}.mp3`,
@@ -329,6 +399,9 @@ module.exports = {
 
                 await sock.sendMessage(jid, messageOptions, { quoted: message });
             }
+
+            // 11. NO ELIMINAR el mensaje de la barra de carga (se queda visible)
+            // Se queda el mensaje con 100% como finalización
 
             Logger.info(`✅ Audio enviado: ${video.title}`);
 

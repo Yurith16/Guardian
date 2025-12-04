@@ -33,7 +33,8 @@ class GestorGrupos {
                         antilink: true,
                         antibots: true,
                         bienvenidas: true,
-                        despedidas: false
+                        despedidas: false,
+                        antispam: true
                     },
                     estadisticas: {
                         total_mensajes: 0,
@@ -41,7 +42,9 @@ class GestorGrupos {
                         ultima_actividad: new Date().toISOString()
                     },
                     usuarios: {},
-                    administradores: this.obtenerAdmins(grupoInfo)
+                    administradores: this.obtenerAdmins(grupoInfo),
+                    silenciados: {}, // NUEVO: Estructura para usuarios silenciados
+                    advertencias: {}  // Para compatibilidad con otros comandos
                 };
 
                 await this.guardarDatos(grupoId, datosBase);
@@ -81,6 +84,163 @@ class GestorGrupos {
             return true;
         } catch (error) {
             Logger.error('Error guardando datos del grupo:', error);
+            return false;
+        }
+    }
+
+    // ✅ NUEVO: Silenciar usuario
+    async silenciarUsuario(grupoId, usuarioId, duracionMinutos = 5, razon = 'Sin razón específica') {
+        try {
+            let datos = await this.obtenerDatos(grupoId);
+            if (!datos) {
+                datos = await this.inicializarGrupo(grupoId);
+                if (!datos) return false;
+            }
+
+            // Inicializar silenciados si no existe
+            if (!datos.silenciados) {
+                datos.silenciados = {};
+            }
+
+            // Calcular fecha de expiración
+            const fechaExpiracion = new Date();
+            fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + duracionMinutos);
+
+            // Agregar usuario a silenciados
+            datos.silenciados[usuarioId] = {
+                usuario_id: usuarioId,
+                numero: usuarioId.split('@')[0],
+                fecha_silenciado: new Date().toISOString(),
+                fecha_expiracion: fechaExpiracion.toISOString(),
+                duracion_minutos: duracionMinutos,
+                razon: razon,
+                silenciado_por: null // Se actualizará cuando se ejecute el comando
+            };
+
+            await this.guardarDatos(grupoId, datos);
+            return true;
+        } catch (error) {
+            Logger.error('Error silenciando usuario:', error);
+            return false;
+        }
+    }
+
+    // ✅ NUEVO: Quitar silencio
+    async quitarSilencio(grupoId, usuarioId) {
+        try {
+            let datos = await this.obtenerDatos(grupoId);
+            if (!datos) return false;
+
+            if (!datos.silenciados || !datos.silenciados[usuarioId]) {
+                return false; // Usuario no está silenciado
+            }
+
+            // Eliminar usuario de silenciados
+            delete datos.silenciados[usuarioId];
+
+            // Si no hay más usuarios silenciados, eliminar el objeto
+            if (Object.keys(datos.silenciados).length === 0) {
+                delete datos.silenciados;
+            }
+
+            await this.guardarDatos(grupoId, datos);
+            return true;
+        } catch (error) {
+            Logger.error('Error quitando silencio:', error);
+            return false;
+        }
+    }
+
+    // ✅ NUEVO: Verificar si usuario está silenciado
+    async verificarSilenciado(grupoId, usuarioId) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.silenciados) return { silenciado: false };
+
+            const usuarioSilenciado = datos.silenciados[usuarioId];
+            if (!usuarioSilenciado) return { silenciado: false };
+
+            // Verificar si el silencio ha expirado
+            const ahora = new Date();
+            const fechaExpiracion = new Date(usuarioSilenciado.fecha_expiracion);
+
+            if (ahora > fechaExpiracion) {
+                // Eliminar automáticamente si ha expirado
+                await this.quitarSilencio(grupoId, usuarioId);
+                return { silenciado: false };
+            }
+
+            return {
+                silenciado: true,
+                fecha_expiracion: usuarioSilenciado.fecha_expiracion,
+                tiempo_restante: Math.ceil((fechaExpiracion - ahora) / (1000 * 60)), // minutos
+                duracion: usuarioSilenciado.duracion_minutos,
+                razon: usuarioSilenciado.razon,
+                fecha_silenciado: usuarioSilenciado.fecha_silenciado,
+                silenciado_por: usuarioSilenciado.silenciado_por
+            };
+        } catch (error) {
+            Logger.error('Error verificando silencio:', error);
+            return { silenciado: false };
+        }
+    }
+
+    // ✅ NUEVO: Obtener lista de usuarios silenciados
+    async obtenerUsuariosSilenciados(grupoId) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.silenciados) return [];
+
+            const ahora = new Date();
+            const usuariosSilenciados = [];
+
+            // Verificar cada usuario y limpiar expirados
+            for (const [usuarioId, info] of Object.entries(datos.silenciados)) {
+                const fechaExpiracion = new Date(info.fecha_expiracion);
+
+                if (ahora > fechaExpiracion) {
+                    // Eliminar expirados
+                    delete datos.silenciados[usuarioId];
+                } else {
+                    const tiempoRestante = Math.ceil((fechaExpiracion - ahora) / (1000 * 60));
+                    usuariosSilenciados.push({
+                        usuario_id: usuarioId,
+                        numero: info.numero,
+                        tiempo_restante: tiempoRestante,
+                        duracion: info.duracion_minutos,
+                        razon: info.razon,
+                        fecha_silenciado: info.fecha_silenciado,
+                        silenciado_por: info.silenciado_por
+                    });
+                }
+            }
+
+            // Guardar cambios si se eliminaron expirados
+            if (Object.keys(datos.silenciados).length === 0) {
+                delete datos.silenciados;
+            }
+            await this.guardarDatos(grupoId, datos);
+
+            return usuariosSilenciados;
+        } catch (error) {
+            Logger.error('Error obteniendo usuarios silenciados:', error);
+            return [];
+        }
+    }
+
+    // ✅ NUEVO: Actualizar quien silenció al usuario
+    async actualizarSilenciadoPor(grupoId, usuarioId, adminJid) {
+        try {
+            let datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.silenciados || !datos.silenciados[usuarioId]) {
+                return false;
+            }
+
+            datos.silenciados[usuarioId].silenciado_por = adminJid;
+            await this.guardarDatos(grupoId, datos);
+            return true;
+        } catch (error) {
+            Logger.error('Error actualizando silenciado_por:', error);
             return false;
         }
     }
