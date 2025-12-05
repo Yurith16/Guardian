@@ -6,8 +6,6 @@ module.exports = {
     description: 'Silenciar usuario temporalmente',
     isGroup: true,
     isPrivate: false,
-    isAdmin: true,
-
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;

@@ -3,8 +3,8 @@ const Logger = require('../../utils/logger');
 module.exports = {
     command: ['demote', 'degradar', 'quitaradmin'],
     description: 'Quitar permisos de administrador a un miembro (Solo Admins)',
-    isGroup: true,
-    isPrivate: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

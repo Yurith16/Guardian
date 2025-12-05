@@ -1,11 +1,12 @@
-const Logger = require('../../utils/logger');
+ /* const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['disable_antispam', 'antispam_off'],
-    description: 'Desactivar protección antispam (Solo Admins)',
-        isGroup: true,      // ✅ Solo grupos
-        isPrivate: false,
+    command: ['disableantilink', 'desactivarantilink', 'offantilink'],
+    description: 'Desactivar protección antilink medio',
+    isGroup: true,
+    isPrivate: false,
+    isAdmin: true,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
@@ -18,12 +19,20 @@ module.exports = {
 
             if (!participant || !['admin', 'superadmin'].includes(participant.admin)) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Solo los administradores pueden usar este comando.' 
+                    text: '❌ Solo administradores.' 
                 }, { quoted: message });
             }
 
-            // Crear instancia del gestor de grupos
-            const gestorGrupos = new GestorGrupos();
+            // Crear instancia directa del gestor de grupos
+            let gestorGrupos;
+            try {
+                gestorGrupos = new GestorGrupos();
+            } catch (error) {
+                Logger.error('Error creando gestor de grupos:', error);
+                return await sock.sendMessage(jid, { 
+                    text: '❌ Error en base de datos.' 
+                }, { quoted: message });
+            }
 
             // Obtener datos actuales del grupo
             let datosGrupo = await gestorGrupos.obtenerDatos(jid);
@@ -33,39 +42,47 @@ module.exports = {
                 datosGrupo = await gestorGrupos.inicializarGrupo(jid, metadata);
                 if (!datosGrupo) {
                     return await sock.sendMessage(jid, { 
-                        text: '❌ Error al inicializar grupo en la base de datos.' 
+                        text: '❌ Error al inicializar.' 
                     }, { quoted: message });
                 }
             }
 
-            // Desactivar antispam
-            datosGrupo.configuraciones.antispam = false;
+            // Verificar si ya está desactivado
+            const estadoActual = datosGrupo.configuraciones?.antilink === false;
+            
+            if (estadoActual) {
+                return await sock.sendMessage(jid, { 
+                    text: '⚠️ Antilink medio ya desactivado.' 
+                }, { quoted: message });
+            }
+
+            // Desactivar antilink
+            datosGrupo.configuraciones.antilink = false;
 
             // Guardar cambios
             const guardadoExitoso = await gestorGrupos.guardarDatos(jid, datosGrupo);
 
             if (!guardadoExitoso) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Error al guardar la configuración.' 
+                    text: '❌ Error al guardar.' 
                 }, { quoted: message });
             }
 
-            const mensaje = `🔴 *PROTECCIÓN ANTISPAM DESACTIVADA*\n\n` +
-                           `⚠️ *Advertencia:* El grupo ya no está protegido contra spam masivo\n` +
-                           `💡 *Recomendación:* Mantén esta protección activada para seguridad del grupo`;
-
+            const adminNumero = sender.split('@')[0];
+            
             await sock.sendMessage(jid, { 
-                text: mensaje 
+                text: `✅ Sistema de antilink medio desactivado por @${adminNumero}`,
+                mentions: [sender]
             }, { quoted: message });
 
-            Logger.info(`✅ Antispam desactivado en ${jid} por ${sender}`);
+            Logger.info(`✅ Antilink medio DESACTIVADO en ${jid} por ${sender}`);
 
         } catch (error) {
-            Logger.error('Error en disable_antispam:', error);
+            Logger.error('Error en comando disableantilink:', error);
 
             try {
                 await sock.sendMessage(jid, { 
-                    text: '❌ Error al desactivar la protección antispam.' 
+                    text: '❌ Error al desactivar.' 
                 }, { quoted: message });
             } catch (sendError) {
                 Logger.error('Error enviando mensaje:', sendError);
@@ -73,3 +90,4 @@ module.exports = {
         }
     }
 };
+*/

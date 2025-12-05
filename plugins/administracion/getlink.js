@@ -3,9 +3,8 @@ const Logger = require('../../utils/logger');
 module.exports = {
     command: ['link', 'enlace', 'getlink', 'invitelink'],
     description: 'Generar enlace de invitación del grupo (Solo Admins)',
-    isGroup: true,
-    isPrivate: false,
-
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;

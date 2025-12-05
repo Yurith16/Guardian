@@ -4,8 +4,8 @@ const GestorGrupos = require('../../database/gestorGrupos');
 module.exports = {
     command: ['byemsg', 'despedida'],
     description: 'Activar/desactivar mensajes de despedida',
-    isGroup: true,
-    isPrivate: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

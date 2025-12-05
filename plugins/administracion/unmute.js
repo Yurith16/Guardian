@@ -6,7 +6,6 @@ module.exports = {
     description: 'Quitar silencio a usuario',
     isGroup: true,
     isPrivate: false,
-    isAdmin: true,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

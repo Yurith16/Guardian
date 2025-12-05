@@ -1,11 +1,12 @@
-const Logger = require('../../utils/logger');
+/*const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['antilink'],
-    description: 'Activar/desactivar protección antilink (Solo Admins)',
+    command: ['enableantilink', 'activarantilink', 'onantilink'],
+    description: 'Activar protección antilink medio',
     isGroup: true,
     isPrivate: false,
+    isAdmin: true,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
@@ -18,7 +19,7 @@ module.exports = {
 
             if (!participant || !['admin', 'superadmin'].includes(participant.admin)) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Solo los administradores pueden usar este comando.' 
+                    text: '❌ Solo administradores.' 
                 }, { quoted: message });
             }
 
@@ -29,7 +30,7 @@ module.exports = {
             } catch (error) {
                 Logger.error('Error creando gestor de grupos:', error);
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Error al acceder a la base de datos.' 
+                    text: '❌ Error en base de datos.' 
                 }, { quoted: message });
             }
 
@@ -41,48 +42,47 @@ module.exports = {
                 datosGrupo = await gestorGrupos.inicializarGrupo(jid, metadata);
                 if (!datosGrupo) {
                     return await sock.sendMessage(jid, { 
-                        text: '❌ Error al inicializar grupo en la base de datos.' 
+                        text: '❌ Error al inicializar.' 
                     }, { quoted: message });
                 }
             }
 
-            // Obtener estado actual del antilink
+            // Verificar si ya está activado
             const estadoActual = datosGrupo.configuraciones?.antilink !== false;
+            
+            if (estadoActual) {
+                return await sock.sendMessage(jid, { 
+                    text: '⚠️ Antilink medio ya activado.' 
+                }, { quoted: message });
+            }
 
-            // Cambiar estado (invertir el actual)
-            const nuevoEstado = !estadoActual;
-
-            // Actualizar configuración
-            datosGrupo.configuraciones.antilink = nuevoEstado;
+            // Activar antilink
+            datosGrupo.configuraciones.antilink = true;
 
             // Guardar cambios
             const guardadoExitoso = await gestorGrupos.guardarDatos(jid, datosGrupo);
 
             if (!guardadoExitoso) {
                 return await sock.sendMessage(jid, { 
-                    text: '❌ Error al guardar la configuración.' 
+                    text: '❌ Error al guardar.' 
                 }, { quoted: message });
             }
 
-            const estadoTexto = nuevoEstado ? 'activada' : 'desactivada';
-            const emoji = nuevoEstado ? '🟢' : '🔴';
-
-            const mensaje = nuevoEstado 
-                ? `${emoji} *Protección Antilink ACTIVADA*\n\n🚫 *Enlaces BLOQUEADOS:*\n• WhatsApp (todas las variantes)\n• Cualquier enlace de navegador\n\n✅ *Enlaces PERMITIDOS:*\n• TikTok, Facebook, Instagram\n• YouTube, Twitter, MediaFire\n\n⚠️ *Los usuarios que envíen enlaces no permitidos serán ELIMINADOS automáticamente*`
-                : `${emoji} *Protección Antilink DESACTIVADA*\n\n📱 Ahora se permiten todos los enlaces.`;
-
+            const adminNumero = sender.split('@')[0];
+            
             await sock.sendMessage(jid, { 
-                text: mensaje 
+                text: `✅ Sistema de antilink medio activado por @${adminNumero}`,
+                mentions: [sender]
             }, { quoted: message });
 
-            Logger.info(`✅ Antilink ${estadoTexto} en ${jid} por ${sender}`);
+            Logger.info(`✅ Antilink medio ACTIVADO en ${jid} por ${sender}`);
 
         } catch (error) {
-            Logger.error('Error en comando antilink:', error);
+            Logger.error('Error en comando enableantilink:', error);
 
             try {
                 await sock.sendMessage(jid, { 
-                    text: '❌ Error al cambiar la configuración antilink.' 
+                    text: '❌ Error al activar.' 
                 }, { quoted: message });
             } catch (sendError) {
                 Logger.error('Error enviando mensaje:', sendError);
@@ -90,3 +90,4 @@ module.exports = {
         }
     }
 };
+*/

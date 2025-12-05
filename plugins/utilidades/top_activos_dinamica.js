@@ -4,11 +4,9 @@ const Config = require('../../config/bot.json');
 module.exports = {
     command: ['topactivos', 'toparchivos', 'ranking'],
     description: 'Ver top de usuarios más activos (Solo Admins)',
-    isOwner: false,
     isGroup: true,
     isPrivate: false,
-    isAdmin: true,
-
+    
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
         const sender = message.key.participant || message.key.remoteJid;

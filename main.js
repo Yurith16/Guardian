@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // ==============================
-// ✅ EXPORTACIONES GLOBALES PARA MÓDULOS
+// ✅ FUNCIONES GLOBALES PARA MUTE Y OTROS MÓDULOS
 // ==============================
 let gestorComandosGlobal = null;
 let socketGlobal = null;
@@ -14,27 +14,24 @@ let botInstanceGlobal = null;
 
 function establecerGestorComandos(gc) {
     gestorComandosGlobal = gc;
+    Logger.info('✅ Gestor de comandos establecido globalmente');
 }
 
 function establecerSocket(sock) {
     socketGlobal = sock;
+    Logger.info('✅ Socket establecido globalmente');
 }
 
 function establecerBotInstance(bot) {
     botInstanceGlobal = bot;
+    Logger.info('✅ Instancia del bot establecida globalmente');
 }
 
 function obtenerGestorComandos() {
-    if (!gestorComandosGlobal && botInstanceGlobal) {
-        return botInstanceGlobal.obtenerGestorComandos();
-    }
     return gestorComandosGlobal;
 }
 
 function obtenerSocket() {
-    if (!socketGlobal && botInstanceGlobal) {
-        return botInstanceGlobal.obtenerSocket();
-    }
     return socketGlobal;
 }
 
@@ -42,7 +39,7 @@ function obtenerBotInstance() {
     return botInstanceGlobal;
 }
 
-// Exportar para uso en otros módulos
+// Exportar a global para uso en seguridad_mute.js y otros módulos
 global.obtenerGestorComandos = obtenerGestorComandos;
 global.obtenerSocket = obtenerSocket;
 global.obtenerBotInstance = obtenerBotInstance;
@@ -67,11 +64,12 @@ class GuardianBot {
             comandosEjecutados: 0
         };
 
-        // ✅ Exportar componentes globalmente
+        // ✅ Exportar componentes globalmente para mute y otros módulos
         establecerGestorComandos(this.gestorComandos);
         establecerBotInstance(this);
 
         this.configurarManejoSenales();
+        Logger.info('🛡️ GuardianBot inicializado con funciones globales');
     }
 
     async iniciar() {
@@ -99,7 +97,7 @@ class GuardianBot {
             this.socket = await this.manejadorConexion.iniciar();
             this.estado = 'conectado';
 
-            // ✅ Exportar socket globalmente
+            // ✅ Exportar socket globalmente para mute
             establecerSocket(this.socket);
 
             this.mostrarBanner();
@@ -209,7 +207,7 @@ class GuardianBot {
             this.socket = await this.manejadorConexion.iniciar();
             this.estado = 'conectado';
             
-            // ✅ Actualizar socket globalmente
+            // ✅ Actualizar socket globalmente para mute
             establecerSocket(this.socket);
             
             Logger.info('✅ Reconexión exitosa');
@@ -292,9 +290,33 @@ class GuardianBot {
         return this.manejadorConexion;
     }
 
-    // ✅ Método para obtener gestor de grupos (importante para el sistema de mute)
+    // ✅ Método para obtener gestor de grupos (IMPORTANTE para el sistema de mute)
     obtenerGestorGrupos() {
-        return this.gestorComandos?.obtenerGestorGrupos() || null;
+        if (!this.gestorComandos) {
+            Logger.warn('⚠️ Gestor de comandos no disponible');
+            return null;
+        }
+        
+        const gestorGrupos = this.gestorComandos.obtenerGestorGrupos();
+        if (!gestorGrupos) {
+            Logger.warn('⚠️ Gestor de grupos no disponible');
+        }
+        
+        return gestorGrupos;
+    }
+
+    // ✅ Método para debugging del sistema de mute
+    obtenerEstadisticasMute() {
+        if (!this.manejadorConexion) {
+            return { error: 'Manejador de conexión no disponible' };
+        }
+        
+        const manejadorMute = this.manejadorConexion.obtenerManejadorMute?.();
+        if (!manejadorMute || !manejadorMute.obtenerEstadisticas) {
+            return { error: 'Manejador de mute no disponible' };
+        }
+        
+        return manejadorMute.obtenerEstadisticas();
     }
 }
 
@@ -318,10 +340,13 @@ process.on('unhandledRejection', (reason, promise) => {
 // Iniciar la aplicación
 botInstance.iniciar();
 
-// También exportar las funciones globales para uso en otros módulos
+// ✅ Exportar las funciones globales y la instancia para uso en otros módulos
 module.exports = {
     botInstance,
     obtenerGestorComandos,
     obtenerSocket,
-    obtenerBotInstance
+    obtenerBotInstance,
+    establecerGestorComandos,
+    establecerSocket,
+    establecerBotInstance
 };

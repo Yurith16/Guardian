@@ -3,9 +3,8 @@ const Logger = require('../../utils/logger');
 module.exports = {
     command: ['delete', 'del', 'eliminar'],
     description: 'Eliminar mensaje respondido (solo admins)',
-    isAdmin: true,
-    isGroup: true,
-    isPrivate: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

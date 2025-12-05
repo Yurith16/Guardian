@@ -29,7 +29,6 @@ async function mostrarInfoGrupo(sock, message, jid) {
 module.exports = {
     command: ['grupo', 'group'],
         description: 'Configuración del grupo',
-        isOwner: true,
         isGroup: true,      // ✅ Solo grupos
         isPrivate: false,
 

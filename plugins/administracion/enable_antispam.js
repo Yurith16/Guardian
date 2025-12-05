@@ -4,8 +4,8 @@ const GestorGrupos = require('../../database/gestorGrupos');
 module.exports = {
     command: ['enable_antispam', 'antispam_on'],
     description: 'Activar protección antispam (Solo Admins)',
-    isGroup: true,
-    isPrivate: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;

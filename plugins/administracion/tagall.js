@@ -21,8 +21,6 @@ function obtenerGestorGrupos() {
 module.exports = {
     command: ['tagall', 'todos', 'invocar','contador'],
     description: 'Mencionar a todos los miembros con estadísticas',
-    isOwner: false,
-    isAdmin: true,
     isGroup: true,
     isPrivate: false,
 

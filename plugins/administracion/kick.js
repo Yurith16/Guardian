@@ -3,8 +3,6 @@ const Logger = require('../../utils/logger');
 module.exports = {
     command: ['kick', 'expulsar'],
         description: 'Expulsar usuario del grupo',
-        isOwner: false,
-        isAdmin: true,
         isGroup: true,      // ✅ Solo grupos
         isPrivate: false,
 

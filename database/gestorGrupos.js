@@ -23,34 +23,58 @@ class GestorGrupos {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
 
-            if (!fs.existsSync(rutaArchivo)) {
-                const datosBase = {
-                    grupo_id: grupoId,
-                    nombre: grupoInfo?.subject || 'Sin nombre',
-                    fecha_creacion: new Date().toISOString(),
-                    fecha_actualizacion: new Date().toISOString(),
-                    configuraciones: {
-                        antilink: true,
-                        antibots: true,
-                        bienvenidas: true,
-                        despedidas: false,
-                        antispam: true
-                    },
-                    estadisticas: {
-                        total_mensajes: 0,
-                        total_usuarios: grupoInfo?.participants?.length || 0,
-                        ultima_actividad: new Date().toISOString()
-                    },
-                    usuarios: {},
-                    administradores: this.obtenerAdmins(grupoInfo),
-                    silenciados: {}, // NUEVO: Estructura para usuarios silenciados
-                    advertencias: {}  // Para compatibilidad con otros comandos
-                };
+            let datosBase = {
+                grupo_id: grupoId,
+                nombre: grupoInfo?.subject || 'Sin nombre',
+                fecha_creacion: new Date().toISOString(),
+                fecha_actualizacion: new Date().toISOString(),
+                configuraciones: {
+                    antilink: true,           // Antilink selectivo
+                    antilink2: false,         // Antilink universal (desactivado por defecto)
+                    antibots: true,
+                    bienvenidas: true,
+                    despedidas: false,
+                    antispam: true,
+                    antimedia: false,
+                    antifake: true
+                },
+                estadisticas: {
+                    total_mensajes: 0,
+                    total_usuarios: grupoInfo?.participants?.length || 0,
+                    ultima_actividad: new Date().toISOString()
+                },
+                usuarios: {},
+                administradores: this.obtenerAdmins(grupoInfo),
+                silenciados: {},
+                advertencias: {},
+                moderacion: {
+                    ultima_accion: null,
+                    acciones_realizadas: 0
+                }
+            };
 
-                await this.guardarDatos(grupoId, datosBase);
+            // Si el archivo existe, cargarlo y actualizar solo lo necesario
+            if (fs.existsSync(rutaArchivo)) {
+                const datosExistentes = JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
+                
+                // Mantener configuraciones existentes
+                if (datosExistentes.configuraciones) {
+                    datosBase.configuraciones = {
+                        ...datosBase.configuraciones,
+                        ...datosExistentes.configuraciones
+                    };
+                }
+                
+                // Mantener otros datos existentes
+                datosBase = {
+                    ...datosBase,
+                    ...datosExistentes,
+                    fecha_actualizacion: new Date().toISOString()
+                };
             }
 
-            return await this.obtenerDatos(grupoId);
+            await this.guardarDatos(grupoId, datosBase);
+            return datosBase;
         } catch (error) {
             Logger.error('Error inicializando grupo:', error);
             return null;
@@ -67,8 +91,12 @@ class GestorGrupos {
     async obtenerDatos(grupoId) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
-            if (!fs.existsSync(rutaArchivo)) return null;
-            return JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
+            if (!fs.existsSync(rutaArchivo)) {
+                return null;
+            }
+            
+            const datos = JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
+            return datos;
         } catch (error) {
             Logger.error('Error obteniendo datos del grupo:', error);
             return null;
@@ -78,8 +106,15 @@ class GestorGrupos {
     async guardarDatos(grupoId, datos) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
+            
+            // Actualizar fechas
             datos.fecha_actualizacion = new Date().toISOString();
-            datos.estadisticas.ultima_actividad = new Date().toISOString();
+            
+            // Asegurar que estadísticas tengan última actividad
+            if (datos.estadisticas) {
+                datos.estadisticas.ultima_actividad = new Date().toISOString();
+            }
+            
             fs.writeFileSync(rutaArchivo, JSON.stringify(datos, null, 2), 'utf8');
             return true;
         } catch (error) {
@@ -88,7 +123,73 @@ class GestorGrupos {
         }
     }
 
-    // ✅ NUEVO: Silenciar usuario
+    async obtenerConfiguracion(grupoId, clave) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.configuraciones) {
+                return null;
+            }
+            
+            return datos.configuraciones[clave];
+        } catch (error) {
+            Logger.error(`Error obteniendo configuración ${clave}:`, error);
+            return null;
+        }
+    }
+
+    async actualizarConfiguracion(grupoId, clave, valor) {
+        try {
+            let datos = await this.obtenerDatos(grupoId);
+            if (!datos) {
+                datos = await this.inicializarGrupo(grupoId);
+                if (!datos) return false;
+            }
+            
+            // Asegurar que exista configuraciones
+            if (!datos.configuraciones) {
+                datos.configuraciones = {};
+            }
+            
+            // Actualizar configuración
+            datos.configuraciones[clave] = valor;
+            
+            // Registrar acción de moderación
+            if (datos.moderacion) {
+                datos.moderacion.ultima_accion = {
+                    tipo: 'configuracion',
+                    clave: clave,
+                    valor: valor,
+                    fecha: new Date().toISOString()
+                };
+                datos.moderacion.acciones_realizadas = (datos.moderacion.acciones_realizadas || 0) + 1;
+            }
+            
+            return await this.guardarDatos(grupoId, datos);
+        } catch (error) {
+            Logger.error(`Error actualizando configuración ${clave}:`, error);
+            return false;
+        }
+    }
+
+    async obtenerEstadoAntilink2(grupoId) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.configuraciones) {
+                return false; // Por defecto desactivado
+            }
+            
+            return datos.configuraciones.antilink2 === true;
+        } catch (error) {
+            Logger.error('Error obteniendo estado antilink2:', error);
+            return false;
+        }
+    }
+
+    async actualizarEstadoAntilink2(grupoId, activo) {
+        return await this.actualizarConfiguracion(grupoId, 'antilink2', activo);
+    }
+
+    // Métodos de silencio (mantenidos)
     async silenciarUsuario(grupoId, usuarioId, duracionMinutos = 5, razon = 'Sin razón específica') {
         try {
             let datos = await this.obtenerDatos(grupoId);
@@ -97,16 +198,13 @@ class GestorGrupos {
                 if (!datos) return false;
             }
 
-            // Inicializar silenciados si no existe
             if (!datos.silenciados) {
                 datos.silenciados = {};
             }
 
-            // Calcular fecha de expiración
             const fechaExpiracion = new Date();
             fechaExpiracion.setMinutes(fechaExpiracion.getMinutes() + duracionMinutos);
 
-            // Agregar usuario a silenciados
             datos.silenciados[usuarioId] = {
                 usuario_id: usuarioId,
                 numero: usuarioId.split('@')[0],
@@ -114,44 +212,38 @@ class GestorGrupos {
                 fecha_expiracion: fechaExpiracion.toISOString(),
                 duracion_minutos: duracionMinutos,
                 razon: razon,
-                silenciado_por: null // Se actualizará cuando se ejecute el comando
+                silenciado_por: null
             };
 
-            await this.guardarDatos(grupoId, datos);
-            return true;
+            return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error('Error silenciando usuario:', error);
             return false;
         }
     }
 
-    // ✅ NUEVO: Quitar silencio
     async quitarSilencio(grupoId, usuarioId) {
         try {
             let datos = await this.obtenerDatos(grupoId);
             if (!datos) return false;
 
             if (!datos.silenciados || !datos.silenciados[usuarioId]) {
-                return false; // Usuario no está silenciado
+                return false;
             }
 
-            // Eliminar usuario de silenciados
             delete datos.silenciados[usuarioId];
 
-            // Si no hay más usuarios silenciados, eliminar el objeto
             if (Object.keys(datos.silenciados).length === 0) {
                 delete datos.silenciados;
             }
 
-            await this.guardarDatos(grupoId, datos);
-            return true;
+            return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error('Error quitando silencio:', error);
             return false;
         }
     }
 
-    // ✅ NUEVO: Verificar si usuario está silenciado
     async verificarSilenciado(grupoId, usuarioId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -160,12 +252,10 @@ class GestorGrupos {
             const usuarioSilenciado = datos.silenciados[usuarioId];
             if (!usuarioSilenciado) return { silenciado: false };
 
-            // Verificar si el silencio ha expirado
             const ahora = new Date();
             const fechaExpiracion = new Date(usuarioSilenciado.fecha_expiracion);
 
             if (ahora > fechaExpiracion) {
-                // Eliminar automáticamente si ha expirado
                 await this.quitarSilencio(grupoId, usuarioId);
                 return { silenciado: false };
             }
@@ -173,7 +263,7 @@ class GestorGrupos {
             return {
                 silenciado: true,
                 fecha_expiracion: usuarioSilenciado.fecha_expiracion,
-                tiempo_restante: Math.ceil((fechaExpiracion - ahora) / (1000 * 60)), // minutos
+                tiempo_restante: Math.ceil((fechaExpiracion - ahora) / (1000 * 60)),
                 duracion: usuarioSilenciado.duracion_minutos,
                 razon: usuarioSilenciado.razon,
                 fecha_silenciado: usuarioSilenciado.fecha_silenciado,
@@ -185,7 +275,6 @@ class GestorGrupos {
         }
     }
 
-    // ✅ NUEVO: Obtener lista de usuarios silenciados
     async obtenerUsuariosSilenciados(grupoId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -194,12 +283,10 @@ class GestorGrupos {
             const ahora = new Date();
             const usuariosSilenciados = [];
 
-            // Verificar cada usuario y limpiar expirados
             for (const [usuarioId, info] of Object.entries(datos.silenciados)) {
                 const fechaExpiracion = new Date(info.fecha_expiracion);
 
                 if (ahora > fechaExpiracion) {
-                    // Eliminar expirados
                     delete datos.silenciados[usuarioId];
                 } else {
                     const tiempoRestante = Math.ceil((fechaExpiracion - ahora) / (1000 * 60));
@@ -215,7 +302,6 @@ class GestorGrupos {
                 }
             }
 
-            // Guardar cambios si se eliminaron expirados
             if (Object.keys(datos.silenciados).length === 0) {
                 delete datos.silenciados;
             }
@@ -228,7 +314,6 @@ class GestorGrupos {
         }
     }
 
-    // ✅ NUEVO: Actualizar quien silenció al usuario
     async actualizarSilenciadoPor(grupoId, usuarioId, adminJid) {
         try {
             let datos = await this.obtenerDatos(grupoId);
@@ -237,15 +322,14 @@ class GestorGrupos {
             }
 
             datos.silenciados[usuarioId].silenciado_por = adminJid;
-            await this.guardarDatos(grupoId, datos);
-            return true;
+            return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error('Error actualizando silenciado_por:', error);
             return false;
         }
     }
 
-    // ✅ NUEVO: Registrar archivo de usuario
+    // Métodos de archivos (mantenidos)
     async registrarArchivo(grupoId, usuarioId, tipoArchivo) {
         try {
             let datos = await this.obtenerDatos(grupoId);
@@ -254,10 +338,8 @@ class GestorGrupos {
                 if (!datos) return false;
             }
 
-            // Obtener fecha actual para control de stickers
             const fechaHoy = new Date().toDateString();
 
-            // Inicializar usuario si no existe
             if (!datos.usuarios[usuarioId]) {
                 datos.usuarios[usuarioId] = {
                     numero: usuarioId.split('@')[0],
@@ -273,7 +355,6 @@ class GestorGrupos {
                     ultimo_archivo: new Date().toISOString(),
                     primer_archivo: new Date().toISOString(),
                     es_admin: datos.administradores.includes(usuarioId),
-                    // Control de stickers diarios
                     stickers_diarios: {
                         fecha: fechaHoy,
                         contador: 0
@@ -283,35 +364,28 @@ class GestorGrupos {
 
             const usuario = datos.usuarios[usuarioId];
 
-            // ✅ CONTROL DE STICKERS (máximo 10 por día)
             if (tipoArchivo === 'sticker') {
-                // Verificar si es nuevo día
                 if (usuario.stickers_diarios.fecha !== fechaHoy) {
                     usuario.stickers_diarios.fecha = fechaHoy;
                     usuario.stickers_diarios.contador = 0;
                 }
 
-                // Si ya alcanzó el límite, ignorar
                 if (usuario.stickers_diarios.contador >= 10) {
                     return false;
                 }
 
-                // Incrementar contador de stickers
                 usuario.stickers_diarios.contador++;
             }
 
-            // Incrementar contador del tipo de archivo
             if (usuario.archivos[tipoArchivo] !== undefined) {
                 usuario.archivos[tipoArchivo]++;
                 usuario.total_archivos++;
                 usuario.ultimo_archivo = new Date().toISOString();
 
-                // Actualizar estadísticas del grupo
                 datos.estadisticas.total_mensajes++;
                 datos.estadisticas.ultima_actividad = new Date().toISOString();
 
-                await this.guardarDatos(grupoId, datos);
-                return true;
+                return await this.guardarDatos(grupoId, datos);
             }
 
             return false;
@@ -321,7 +395,6 @@ class GestorGrupos {
         }
     }
 
-    // ✅ NUEVO: Obtener perfil de usuario
     async obtenerPerfilUsuario(grupoId, usuarioId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -349,7 +422,6 @@ class GestorGrupos {
         }
     }
 
-    // ✅ NUEVO: Obtener top de usuarios activos
     async obtenerTopActivos(grupoId, limite = 20) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -374,12 +446,6 @@ class GestorGrupos {
         }
     }
 
-    // Mantener métodos existentes para compatibilidad
-    async registrarMensaje(grupoId, usuarioId, usuarioInfo = null) {
-        // Método mantenido para compatibilidad
-        return true;
-    }
-
     async obtenerEstadisticasGrupo(grupoId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -398,12 +464,47 @@ class GestorGrupos {
                     numero: usuarioMasActivo.numero,
                     archivos: usuarioMasActivo.total_archivos
                 } : null,
+                configuraciones: datos.configuraciones,
                 fecha_creacion: datos.fecha_creacion,
-                ultima_actividad: datos.estadisticas.ultima_actividad
+                ultima_actividad: datos.estadisticas.ultima_actividad,
+                moderacion: datos.moderacion
             };
         } catch (error) {
             Logger.error('Error obteniendo estadísticas:', error);
             return null;
+        }
+    }
+
+    // Método para limpiar grupos antiguos
+    async limpiarGruposAntiguos(dias = 30) {
+        try {
+            const archivos = fs.readdirSync(this.datosPath);
+            const ahora = new Date();
+            const limite = dias * 24 * 60 * 60 * 1000;
+            let eliminados = 0;
+
+            for (const archivo of archivos) {
+                if (!archivo.endsWith('.json')) continue;
+
+                const rutaCompleta = path.join(this.datosPath, archivo);
+                const datos = JSON.parse(fs.readFileSync(rutaCompleta, 'utf8'));
+                
+                if (datos.estadisticas?.ultima_actividad) {
+                    const ultimaActividad = new Date(datos.estadisticas.ultima_actividad);
+                    const diferencia = ahora - ultimaActividad;
+
+                    if (diferencia > limite) {
+                        fs.unlinkSync(rutaCompleta);
+                        eliminados++;
+                        Logger.info(`🧹 Grupo eliminado por inactividad: ${datos.nombre}`);
+                    }
+                }
+            }
+
+            return eliminados;
+        } catch (error) {
+            Logger.error('Error limpiando grupos antiguos:', error);
+            return 0;
         }
     }
 }

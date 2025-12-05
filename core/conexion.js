@@ -4,7 +4,8 @@ const chalk = require('chalk')
 const path = require('path')
 const qrcode = require('qrcode-terminal')
 const ManejadorAntispam = require('./seguridad_antispam');
-const ManejadorMute = require('./seguridad_mute');
+const ManejadorAntilink2 = require('./seguridad_antilink2');
+const { ManejadorMute, setFuncionesGlobales } = require('./seguridad_mute');
 const ManejadorEventosGrupo = require('./manejador_eventos');
 const {
     default: makeWASocket,
@@ -38,10 +39,35 @@ class ManejadorConexion {
         this.intentosSesionInvalida = 0
         this.maxIntentosSesionInvalida = 3
         this.manejadorSeguridad = new ManejadorSeguridad()
+       this.manejadorAntilink2 = new ManejadorAntilink2(); 
         this.lastActivity = Date.now()
+        
+        // ✅ CONFIGURAR FUNCIONES GLOBALES PARA MUTE
+        this.configurarFuncionesGlobales();
         
         // ✅ Iniciar heartbeat automático
         this.iniciarHeartbeat()
+    }
+
+    // ✅ CONFIGURAR FUNCIONES GLOBALES PARA MUTE
+    configurarFuncionesGlobales() {
+        try {
+            if (setFuncionesGlobales) {
+                setFuncionesGlobales({
+                    obtenerGestorComandos: () => {
+                        return this.guardianBot?.obtenerGestorComandos?.() || null;
+                    },
+                    obtenerBotInstance: () => {
+                        return this.guardianBot || null;
+                    }
+                });
+                Logger.info('✅ Funciones globales para mute configuradas');
+            } else {
+                Logger.warn('⚠️ setFuncionesGlobales no disponible en ManejadorMute');
+            }
+        } catch (error) {
+            Logger.error('❌ Error configurando funciones globales:', error);
+        }
     }
 
     // ✅ HEARTBEAT AUTOMÁTICO
@@ -234,22 +260,40 @@ class ManejadorConexion {
                     // Filtrar mensajes antiguos
                     if (message.messageTimestamp && (Date.now()/1000 - message.messageTimestamp > 120)) continue
 
-                    // ========== VERIFICACIÓN ANTILINK PRIMERO ==========
-                    if (jid.endsWith('@g.us') && texto) {
-                        // ✅ VERIFICAR QUE manejadorSeguridad EXISTA ANTES DE USARLO
-                        if (this.manejadorSeguridad && typeof this.manejadorSeguridad.verificarAntilink === 'function') {
-                            await this.manejadorSeguridad.verificarAntilink(this.sock, message, jid, texto);
-                        } else {
-                            console.log(chalk.red('❌ manejadorSeguridad no está disponible'));
+                    // ========== VERIFICACIÓN MUTE (PRIMERO Y MÁS IMPORTANTE) ==========
+                    if (jid && jid.endsWith('@g.us')) {
+                        // ✅ VERIFICAR SI EL USUARIO ESTÁ SILENCIADO
+                        const usuarioMuteado = await this.manejadorMute.verificarMute(this.sock, message);
+                        
+                        // Si el usuario está silenciado, BLOQUEAR COMPLETAMENTE el mensaje
+                        if (usuarioMuteado) {
+                            const usuarioId = message.key.participant || message.key.remoteJid;
+                            Logger.info(`🚫 MENSAJE BLOQUEADO - Usuario silenciado: ${usuarioId}`);
+                            continue; // Saltar al siguiente mensaje, NO procesar más
                         }
                     }
 
-                    // ========== VERIFICACIÓN MUTE ==========
-                if (jid.endsWith('@g.us')) {
-                    // Verificar si el usuario está silenciado
-                    await this.manejadorMute.verificarMute(this.sock, message);
-                }
+                    // ========== VERIFICACIÓN ANTILINK2 (UNIVERSAL) PRIMERO ==========
+if (jid.endsWith('@g.us')) {
+    // ✅ Antilink2 (universal - bloquea TODOS los enlaces)
+    if (this.manejadorAntilink2 && typeof this.manejadorAntilink2.verificarAntilink2 === 'function') {
+        const enlaceBloqueado = await this.manejadorAntilink2.verificarAntilink2(this.sock, message);
+        
+        // Si antilink2 bloqueó el mensaje, NO verificar el antilink normal
+        if (enlaceBloqueado) {
+            continue; // Saltar al siguiente mensaje
+        }
+    }
+}
 
+// ========== VERIFICACIÓN ANTILINK NORMAL (SELECTIVO) ==========
+if (jid.endsWith('@g.us') && texto) {
+    if (this.manejadorSeguridad && typeof this.manejadorSeguridad.verificarAntilink === 'function') {
+        await this.manejadorSeguridad.verificarAntilink(this.sock, message, jid, texto);
+    } else {
+        console.log(chalk.red('❌ manejadorSeguridad no está disponible'));
+    }
+}
                     // ========== VERIFICACIÓN ANTISPAM ==========
                     if (jid.endsWith('@g.us')) {
                         await this.manejadorAntispam.verificarSpam(this.sock, message);
@@ -435,6 +479,11 @@ class ManejadorConexion {
 
     obtenerEstadoConexion() {
         return this.estaConectado && this.sock !== null
+    }
+
+    // ✅ OBTENER MANEJADOR MUTE (PARA DEBUGGING)
+    obtenerManejadorMute() {
+        return this.manejadorMute;
     }
 }
 

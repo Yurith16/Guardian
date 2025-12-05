@@ -4,8 +4,8 @@ const GestorGrupos = require('../../database/gestorGrupos');
 module.exports = {
     command: ['warn', 'advertir'],
     description: 'Advertir a usuario (3 advertencias = expulsión)',
-    isGroup: true,
-    isPrivate: false,
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
