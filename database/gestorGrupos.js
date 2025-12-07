@@ -52,7 +52,9 @@ class GestorGrupos {
                     antispam: true,
                     antimedia: false,
                     antifake: true,
-                    modo_admin: false
+                    modo_admin: false,
+                    // ✅ NUEVA CONFIGURACIÓN NSFW
+                    nsfw_enabled: false 
                 },
                 estadisticas: {
                     total_mensajes: 0,
@@ -609,6 +611,28 @@ class GestorGrupos {
             return false;
         }
     }
+
+    // ========== MÉTODOS NSFW (NUEVOS) ==========
+    async obtenerEstadoNSFW(grupoId) {
+        try {
+            const datos = await this.obtenerDatos(grupoId);
+            if (!datos || !datos.configuraciones || datos.configuraciones.nsfw_enabled === undefined) {
+                // Si la configuración no existe, asegura la inicialización y devuelve el valor por defecto
+                await this.inicializarGrupo(grupoId); 
+                return false; 
+            }
+            return datos.configuraciones.nsfw_enabled === true; 
+        } catch (error) {
+            Logger.error('Error obteniendo estado NSFW:', error);
+            return false;
+        }
+    }
+
+    async actualizarEstadoNSFW(grupoId, activo) {
+        // Reutiliza el método genérico actualizarConfiguracion
+        return await this.actualizarConfiguracion(grupoId, 'nsfw_enabled', activo);
+    }
+    // ===========================================
 
     async obtenerEstadoAntilink2(grupoId) {
         try {
