@@ -1,12 +1,12 @@
 const { iniciarConexion, ManejadorConexion } = require('./core/conexion');
-const GestorComandos = require('./core/comandos');
+const GestorComandos = require('./core/comandos'); // ✅ Importa directamente
 const Logger = require('./utils/logger');
 const Config = require('./config/bot.json');
 const fs = require('fs');
 const path = require('path');
 
 // ==============================
-// ✅ FUNCIONES GLOBALES PARA MUTE Y OTROS MÓDULOS
+// ✅ FUNCIONES GLOBALES
 // ==============================
 let gestorComandosGlobal = null;
 let socketGlobal = null;
@@ -54,7 +54,22 @@ if (!fs.existsSync(logsDir)) {
 class GuardianBot {
     constructor() {
         this.config = Config;
-        this.gestorComandos = new GestorComandos();
+        
+        try {
+            // ✅ IMPORTAR CORRECTAMENTE GestorComandos
+            this.gestorComandos = new GestorComandos();
+            Logger.info('✅ Gestor de comandos inicializado');
+        } catch (error) {
+            Logger.error('❌ Error inicializando GestorComandos:', error);
+            // Crear gestor vacío para evitar crash
+            this.gestorComandos = {
+                cargarComandos: async () => Logger.warn('⚠️ Gestor de comandos no disponible'),
+                ejecutarComando: async () => {},
+                obtenerGestorGrupos: () => null,
+                contadorComandos: 0
+            };
+        }
+        
         this.socket = null;
         this.manejadorConexion = null;
         this.estado = 'iniciando';
@@ -64,12 +79,12 @@ class GuardianBot {
             comandosEjecutados: 0
         };
 
-        // ✅ Exportar componentes globalmente para mute y otros módulos
+        // ✅ Exportar componentes globalmente
         establecerGestorComandos(this.gestorComandos);
         establecerBotInstance(this);
 
         this.configurarManejoSenales();
-        Logger.info('🛡️ GuardianBot inicializado con funciones globales');
+        Logger.info('🛡️ GuardianBot inicializado');
     }
 
     async iniciar() {
@@ -97,7 +112,7 @@ class GuardianBot {
             this.socket = await this.manejadorConexion.iniciar();
             this.estado = 'conectado';
 
-            // ✅ Exportar socket globalmente para mute
+            // ✅ Exportar socket globalmente
             establecerSocket(this.socket);
 
             this.mostrarBanner();
@@ -290,7 +305,7 @@ class GuardianBot {
         return this.manejadorConexion;
     }
 
-    // ✅ Método para obtener gestor de grupos (IMPORTANTE para el sistema de mute)
+    // ✅ Método para obtener gestor de grupos
     obtenerGestorGrupos() {
         if (!this.gestorComandos) {
             Logger.warn('⚠️ Gestor de comandos no disponible');
@@ -340,7 +355,7 @@ process.on('unhandledRejection', (reason, promise) => {
 // Iniciar la aplicación
 botInstance.iniciar();
 
-// ✅ Exportar las funciones globales y la instancia para uso en otros módulos
+// ✅ Exportar las funciones globales y la instancia
 module.exports = {
     botInstance,
     obtenerGestorComandos,

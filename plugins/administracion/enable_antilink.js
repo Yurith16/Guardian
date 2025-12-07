@@ -2,7 +2,7 @@
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['enableantilink', 'activarantilink', 'onantilink'],
+    command: ['enable_antilink', 'activar_antilink', 'on_antilink'],
     description: 'Activar protección antilink medio',
     isGroup: true,
     isPrivate: false,

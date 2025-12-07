@@ -2,7 +2,7 @@ const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['disableantilink', 'desactivarantilink', 'offantilink'],
+    command: ['disable_antilink', 'desactivar_antilink', 'off_antilink'],
     description: 'Desactivar protección ANTILINK UNIVERSAL',
     isGroup: true,
     isPrivate: false,

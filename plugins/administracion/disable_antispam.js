@@ -2,74 +2,76 @@ const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
 module.exports = {
-    command: ['disable_antispam', 'antispam_off'],
-    description: 'Desactivar protección antispam (Solo Admins)',
-        isGroup: true,      // ✅ Solo grupos
-        isPrivate: false,
+    command: ['disable_antispam', 'antispam_off'],
+    description: 'Desactivar protección antispam (Solo Admins)',
+        isGroup: true,      // ✅ Solo grupos
+        isPrivate: false,
 
-    async execute(sock, message, args) {
-        const jid = message.key.remoteJid;
-        const sender = message.key.participant || message.key.remoteJid;
+    async execute(sock, message, args) {
+        const jid = message.key.remoteJid;
+        const sender = message.key.participant || message.key.remoteJid;
 
-        try {
-            // Verificar si el usuario es administrador
-            const metadata = await sock.groupMetadata(jid);
-            const participant = metadata.participants.find(p => p.id === sender);
+        try {
+            // Verificar si el usuario es administrador
+            const metadata = await sock.groupMetadata(jid);
+            const participant = metadata.participants.find(p => p.id === sender);
 
-            if (!participant || !['admin', 'superadmin'].includes(participant.admin)) {
-                return await sock.sendMessage(jid, { 
-                    text: '❌ Solo los administradores pueden usar este comando.' 
-                }, { quoted: message });
-            }
+            if (!participant || !['admin', 'superadmin'].includes(participant.admin)) {
+                // 1. MENSAJE DE PERMISO REDUCIDO
+                return await sock.sendMessage(jid, { 
+                    text: '❌ Solo Admins.' 
+                }, { quoted: message });
+            }
 
-            // Crear instancia del gestor de grupos
-            const gestorGrupos = new GestorGrupos();
+            // Crear instancia del gestor de grupos
+            const gestorGrupos = new GestorGrupos();
 
-            // Obtener datos actuales del grupo
-            let datosGrupo = await gestorGrupos.obtenerDatos(jid);
+            // Obtener datos actuales del grupo
+            let datosGrupo = await gestorGrupos.obtenerDatos(jid);
 
-            // Si no existe, inicializar el grupo
-            if (!datosGrupo) {
-                datosGrupo = await gestorGrupos.inicializarGrupo(jid, metadata);
-                if (!datosGrupo) {
-                    return await sock.sendMessage(jid, { 
-                        text: '❌ Error al inicializar grupo en la base de datos.' 
-                    }, { quoted: message });
-                }
-            }
+            // Si no existe, inicializar el grupo
+            if (!datosGrupo) {
+                datosGrupo = await gestorGrupos.inicializarGrupo(jid, metadata);
+                if (!datosGrupo) {
+                    // 2. MENSAJE DE ERROR DE INICIALIZACIÓN REDUCIDO
+                    return await sock.sendMessage(jid, { 
+                        text: '❌ Error en base de datos.' 
+                    }, { quoted: message });
+                }
+            }
 
-            // Desactivar antispam
-            datosGrupo.configuraciones.antispam = false;
+            // Desactivar antispam
+            if (!datosGrupo.configuraciones) datosGrupo.configuraciones = {};
+            datosGrupo.configuraciones.antispam = false;
 
-            // Guardar cambios
-            const guardadoExitoso = await gestorGrupos.guardarDatos(jid, datosGrupo);
+            // Guardar cambios
+            const guardadoExitoso = await gestorGrupos.guardarDatos(jid, datosGrupo);
 
-            if (!guardadoExitoso) {
-                return await sock.sendMessage(jid, { 
-                    text: '❌ Error al guardar la configuración.' 
-                }, { quoted: message });
-            }
+            if (!guardadoExitoso) {
+                // 3. MENSAJE DE ERROR DE GUARDADO REDUCIDO
+                return await sock.sendMessage(jid, { 
+                    text: '❌ Error al guardar la configuración.' 
+                }, { quoted: message });
+            }
 
-            const mensaje = `🔴 *PROTECCIÓN ANTISPAM DESACTIVADA*\n\n` +
-                           `⚠️ *Advertencia:* El grupo ya no está protegido contra spam masivo\n` +
-                           `💡 *Recomendación:* Mantén esta protección activada para seguridad del grupo`;
+            // 4. MENSAJE DE CONFIRMACIÓN MÁS CORTO
+            await sock.sendMessage(jid, { 
+                text: '🔴 Antispam *DESACTIVADO*.' 
+            }, { quoted: message });
 
-            await sock.sendMessage(jid, { 
-                text: mensaje 
-            }, { quoted: message });
+            Logger.info(`✅ Antispam desactivado en ${jid} por ${sender}`);
 
-            Logger.info(`✅ Antispam desactivado en ${jid} por ${sender}`);
+        } catch (error) {
+            Logger.error('Error en disable_antispam:', error);
 
-        } catch (error) {
-            Logger.error('Error en disable_antispam:', error);
-
-            try {
-                await sock.sendMessage(jid, { 
-                    text: '❌ Error al desactivar la protección antispam.' 
-                }, { quoted: message });
-            } catch (sendError) {
-                Logger.error('Error enviando mensaje:', sendError);
-            }
-        }
-    }
+            try {
+                // 5. MENSAJE DE ERROR DE EJECUCIÓN REDUCIDO
+                await sock.sendMessage(jid, { 
+                    text: '❌ Error al desactivar antispam.' 
+                }, { quoted: message });
+            } catch (sendError) {
+                Logger.error('Error enviando mensaje:', sendError);
+            }
+        }
+    }
 };

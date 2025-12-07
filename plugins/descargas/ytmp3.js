@@ -247,7 +247,7 @@ async function updateProgress(sock, jid, messageKey, start, end, step, delayMs, 
 
 // Comando principal
 module.exports = {
-    command: ['play', 'ytmp3', 'audio'],
+    command: ['ytmp3', 'mp3', 'audio'],
     description: 'Descargar audio de YouTube con barra de progreso',
     isOwner: false,
     isGroup: true,

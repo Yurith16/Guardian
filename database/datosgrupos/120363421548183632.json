@@ -1,22 +1,53 @@
 {
   "grupo_id": "120363421548183632@g.us",
-  "nombre": "Sin nombre",
+  "nombre": "Actualizaciones",
   "fecha_creacion": "2025-12-04T23:19:42.727Z",
-  "fecha_actualizacion": "2025-12-05T01:09:16.638Z",
+  "fecha_actualizacion": "2025-12-06T22:58:30.257Z",
   "configuraciones": {
     "antilink": true,
     "antibots": true,
     "bienvenidas": false,
-    "despedidas": false,
+    "despedidas": true,
     "antispam": false,
-    "antilink2": true
+    "antilink2": false,
+    "modo_admin": true
   },
   "estadisticas": {
-    "total_mensajes": 0,
-    "total_usuarios": 0,
-    "ultima_actividad": "2025-12-05T01:09:16.638Z"
+    "total_mensajes": 2,
+    "total_usuarios": 3,
+    "ultima_actividad": "2025-12-06T22:58:30.257Z"
   },
-  "usuarios": {},
-  "administradores": [],
-  "advertencias": {}
+  "usuarios": {
+    "20015168381136@lid": {
+      "numero": "20015168381136",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 1,
+        "otros": 0
+      },
+      "total_archivos": 2,
+      "ultimo_archivo": "2025-12-05T18:39:25.686Z",
+      "primer_archivo": "2025-12-05T17:44:28.814Z",
+      "es_admin": true,
+      "stickers_diarios": {
+        "fecha": "Fri Dec 05 2025",
+        "contador": 0
+      }
+    }
+  },
+  "administradores": [
+    "205862731792516@lid",
+    "20015168381136@lid"
+  ],
+  "advertencias": {},
+  "moderacion": {
+    "ultima_accion": {
+      "tipo": "activar_modo_admin",
+      "fecha": "2025-12-05T18:03:29.711Z"
+    },
+    "acciones_realizadas": 11
+  }
 }

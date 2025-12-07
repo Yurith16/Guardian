@@ -6,6 +6,38 @@ const Logger = require('../utils/logger');
 const Config = require('../config/bot.json');
 const ManejadorPropietarios = require('../utils/propietarios');
 
+/**
+ * Función auxiliar para determinar el tipo de contenido del mensaje para el contador.
+ * @param {object} message - Objeto del mensaje de Baileys.
+ * @returns {string|null} El tipo de archivo ('imagenes', 'videos', 'texto', etc.) o 'otros'.
+ */
+function determinarTipoMensaje(message) {
+    const messageContent = message.message;
+    if (!messageContent) return null;
+
+    if (messageContent.imageMessage) {
+        return 'imagenes';
+    } else if (messageContent.videoMessage) {
+        return 'videos';
+    } else if (messageContent.stickerMessage) {
+        return 'stickers';
+    } else if (messageContent.audioMessage) {
+        return 'audios';
+    } else if (messageContent.documentMessage) {
+        return 'documentos';
+    } else if (messageContent.locationMessage) {
+        return 'ubicaciones';
+    } else if (messageContent.contactMessage || messageContent.contactsArrayMessage) {
+        return 'contactos';
+    } else if (messageContent.conversation || messageContent.extendedTextMessage) {
+        // Se considera texto si hay contenido de conversación o texto extendido.
+        return 'texto';
+    }
+    
+    // Para cualquier otro tipo que no clasificamos específicamente.
+    return 'otros';
+}
+
 class GestorComandos {
     constructor() {
         this.comandos = new Map();
@@ -193,234 +225,297 @@ class GestorComandos {
         return 'General';
     }
 
-    async ejecutarComando(socket, mensaje) {
-    try {
-        const texto = this.obtenerTexto(mensaje);
-        const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
-
-        // ========== VERIFICACIÓN DE LISTA NEGRA ==========
-        if (await this.estaUsuarioBaneado(remitenteCompleto)) {
-            Logger.info(`🚫 Usuario baneado intentó usar comando: ${remitenteCompleto}`);
-            return; // No procesar el mensaje
-        }
-        // =================================================
-
-        // DEBUG: Log del mensaje recibido
-        const remitente = this.obtenerRemitente(mensaje);
-        Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
-
-        // ========== CONTADOR DE MENSAJES ==========
-        await this.contarMensaje(mensaje);
-        // ==========================================
-
-        // Solo procesar si es un comando (empieza con prefix)
-        if (!texto.startsWith(this.prefix)) {
-            return;
-        }
-
-        const args = texto.slice(this.prefix.length).trim().split(/ +/);
-        const comandoNombre = args.shift().toLowerCase();
-
-        if (!comandoNombre) {
-            return; // Solo el prefix, ignorar
-        }
-
-        Logger.info(`🔍 Ejecutando comando: ${this.prefix}${comandoNombre} - Args: [${args.join(', ')}]`);
-
-        // ✅ VERIFICACIÓN ROBUSTA DEL SOCKET - CORREGIDA
-        if (!socket) {
-            Logger.error('❌ Socket no disponible para ejecutar comando');
-
-            try {
-                // ✅ OBTENER SOCKET FRESCO DESDE EL BOT
-                const bot = require('../main');
-                const socketActual = bot.obtenerSocket();
-                
-                if (socketActual) {
-                    const jid = mensaje.key.remoteJid;
-                    await socketActual.sendMessage(jid, { 
-                        text: '⚠️ *Reconectando...*\n\nEl bot se está reconectando automáticamente.' 
-                    }, { quoted: mensaje });
-                }
-            } catch (sendError) {
-                Logger.debug('No se pudo enviar mensaje de reconexión:', sendError.message);
-            }
-            return;
-        }
-
-        // ✅ VERIFICACIÓN ADICIONAL DE ESTADO DEL SOCKET
+    // ✅ MÉTODO PARA VERIFICAR MODO ADMIN (NUEVO)
+    async verificarModoAdmin(socket, jid, remitenteCompleto) {
         try {
-            // Intentar un ping simple para verificar si el socket está activo
-            socket.ev.emit('connection.update', { connection: 'open' });
-        } catch (socketError) {
-            Logger.error('❌ Socket inactivo, omitiendo comando:', socketError.message);
-            return;
-        }
-
-        // Buscar comando directo o alias
-        let comando = this.comandos.get(comandoNombre);
-
-        if (!comando && this.aliases.has(comandoNombre)) {
-            const comandoPrincipal = this.aliases.get(comandoNombre);
-            comando = this.comandos.get(comandoPrincipal);
-            Logger.debug(`🔤 Usando alias: ${comandoNombre} -> ${comandoPrincipal}`);
-        }
-
-        if (!comando) {
-            Logger.debug(`❌ Comando no encontrado: ${comandoNombre}`);
-
-            // Opcional: Enviar mensaje de comando no encontrado
-            try {
-                const jid = mensaje.key.remoteJid;
-                const mensajeNoEncontrado = Config.mensajes?.comandos?.noEncontrado || "❌ Comando no encontrado";
-                await socket.sendMessage(jid, { 
-                    text: `${mensajeNoEncontrado}\nUsa ${this.prefix}menu para ver los comandos disponibles.` 
-                }, { quoted: mensaje });
-            } catch (sendError) {
-                Logger.debug('No se pudo enviar mensaje de comando no encontrado');
+            if (!this.gestorGrupos) return { permitido: true, razon: 'sin_gestor_grupos' };
+            
+            // Obtener estado actual del modo admin
+            const modoAdminActivo = await this.gestorGrupos.obtenerModoAdmin(jid);
+            
+            if (!modoAdminActivo) {
+                return { 
+                    permitido: true, 
+                    razon: 'modo_admin_desactivado',
+                    estado: 'INACTIVO'
+                };
             }
-            return;
-        }
-
-        // ========== SISTEMA DE PERMISOS MEJORADO ==========
-
-        // 1. Verificar permisos de owner
-        if (comando.isOwner && !this.tienePermisosOwner(remitente, remitenteCompleto)) {
-            const mensajeSinPermisos = Config.mensajes?.comandos?.sinPermisos || "⛔ No tienes permisos para usar este comando";
-            Logger.warn(`🚫 Intento de uso sin permisos (Owner): ${comandoNombre} por ${remitente}`);
-
-            try {
-                const jid = mensaje.key.remoteJid;
-                await socket.sendMessage(jid, { text: mensajeSinPermisos }, { quoted: mensaje });
-            } catch (sendError) {
-                Logger.debug('No se pudo enviar mensaje de permisos');
+            
+            // Modo admin está activado, verificar si es administrador
+            const metadata = await socket.groupMetadata(jid);
+            const participant = metadata.participants.find(p => p.id === remitenteCompleto);
+            const esAdmin = participant && ['admin', 'superadmin'].includes(participant.admin);
+            
+            if (esAdmin) {
+                return { 
+                    permitido: true, 
+                    razon: 'es_administrador',
+                    estado: 'ACTIVO_PERMITIDO'
+                };
+            } else {
+                return { 
+                    permitido: false, 
+                    razon: 'modo_admin_activo_no_admin',
+                    estado: 'ACTIVO_BLOQUEADO',
+                    mensaje: '❌ *MODO SOLO ADMINISTRADORES ACTIVADO*\n\n' +
+                             'Este bot solo responde a administradores.\n' +
+                             '👑 *Solo administradores pueden usar comandos*\n\n' +
+                             '🔧 *Para cambiar:*\n' +
+                             '• Usa *.disable modoadmin* para desactivar este modo\n' +
+                             '• O pide a un admin que te otorgue permisos'
+                };
             }
-            return;
+        } catch (error) {
+            Logger.error('Error verificando modo admin:', error);
+            return { 
+                permitido: true, 
+                razon: 'error_default_permitir',
+                estado: 'ERROR'
+            };
         }
+    }
 
-        // 2. Verificar permisos de admin en grupos
-        if (comando.isAdmin && this.esGrupo(mensaje)) {
-            if (!await this.tienePermisosAdmin(socket, mensaje)) {
-                const mensajeSinPermisos = "⛔ Solo los administradores pueden usar este comando";
-                Logger.warn(`🚫 Intento de uso sin permisos (Admin): ${comandoNombre} por ${remitente}`);
+    async ejecutarComando(socket, mensaje) {
+        try {
+            const texto = this.obtenerTexto(mensaje);
+            const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
+
+            // ========== VERIFICACIÓN DE LISTA NEGRA ==========
+            if (await this.estaUsuarioBaneado(remitenteCompleto)) {
+                Logger.info(`🚫 Usuario baneado intentó usar comando: ${remitenteCompleto}`);
+                return;
+            }
+            // =================================================
+
+            // DEBUG: Log del mensaje recibido
+            const remitente = this.obtenerRemitente(mensaje);
+            Logger.debug(`📨 Mensaje de ${remitente}: ${texto}`);
+
+            // ✅ NOTA: EL CONTADOR DE MENSAJES SE HACE AHORA EN main.js ANTES DE ESTA FUNCIÓN.
+
+            // Solo procesar si es un comando (empieza con prefix)
+            if (!texto.startsWith(this.prefix)) {
+                return;
+            }
+
+            const args = texto.slice(this.prefix.length).trim().split(/ +/);
+            const comandoNombre = args.shift().toLowerCase();
+
+            if (!comandoNombre) {
+                return;
+            }
+
+            Logger.info(`🔍 Ejecutando comando: ${this.prefix}${comandoNombre} - Args: [${args.join(', ')}]`);
+
+            // ✅ VERIFICACIÓN ROBUSTA DEL SOCKET
+            if (!socket) {
+                Logger.error('❌ Socket no disponible para ejecutar comando');
+                return;
+            }
+
+            // ✅ VERIFICACIÓN ADICIONAL DE ESTADO DEL SOCKET
+            try {
+                // Intentar un ping simple para verificar si el socket está activo
+                socket.ev.emit('connection.update', { connection: 'open' });
+            } catch (socketError) {
+                Logger.error('❌ Socket inactivo, omitiendo comando:', socketError.message);
+                return;
+            }
+
+            // Buscar comando directo o alias
+            let comando = this.comandos.get(comandoNombre);
+
+            if (!comando && this.aliases.has(comandoNombre)) {
+                const comandoPrincipal = this.aliases.get(comandoNombre);
+                comando = this.comandos.get(comandoPrincipal);
+                Logger.debug(`🔤 Usando alias: ${comandoNombre} -> ${comandoPrincipal}`);
+            }
+
+            if (!comando) {
+                Logger.debug(`❌ Comando no encontrado: ${comandoNombre}`);
+
+                // Opcional: Enviar mensaje de comando no encontrado
+                try {
+                    const jid = mensaje.key.remoteJid;
+                    const mensajeNoEncontrado = Config.mensajes?.comandos?.noEncontrado || "❌ Comando no encontrado";
+                    await socket.sendMessage(jid, { 
+                        text: `${mensajeNoEncontrado}\nUsa ${this.prefix}menu para ver los comandos disponibles.` 
+                    }, { quoted: mensaje });
+                } catch (sendError) {
+                    Logger.debug('No se pudo enviar mensaje de comando no encontrado');
+                }
+                return;
+            }
+
+            // ========== VERIFICACIÓN MODO ADMINISTRADOR (NUEVO) ==========
+            // ✅ VERIFICAR PRIMERO SI ESTAMOS EN GRUPO
+            if (this.esGrupo(mensaje) && this.gestorGrupos) {
+                const jid = mensaje.key.remoteJid;
+                
+                // Verificar modo admin en tiempo real
+                const verificacionModoAdmin = await this.verificarModoAdmin(socket, jid, remitenteCompleto);
+                Logger.debug(`🔐 Verificación modo admin: ${verificacionModoAdmin.razon} - Estado: ${verificacionModoAdmin.estado}`);
+                
+                // Si modo admin está activo y usuario NO es admin, BLOQUEAR
+                if (!verificacionModoAdmin.permitido) {
+                    Logger.warn(`🚫 Comando BLOQUEADO (Modo Admin): ${comandoNombre} por ${remitenteCompleto} en ${jid}`);
+                    
+                    // Enviar mensaje explicativo
+                    if (verificacionModoAdmin.mensaje) {
+                        try {
+                            await socket.sendMessage(jid, {
+                                text: verificacionModoAdmin.mensaje
+                            }, { quoted: mensaje });
+                        } catch (sendError) {
+                            Logger.debug('No se pudo enviar mensaje de modo admin');
+                        }
+                    }
+                    return; // ❌ BLOQUEAR comando
+                }
+            }
+            // ============================================================
+
+            // ========== SISTEMA DE PERMISOS MEJORADO ==========
+
+            // 1. Verificar permisos de owner 
+            if (comando.isOwner && !this.tienePermisosOwner(remitente, remitenteCompleto)) {
+                const mensajeSinPermisos = Config.mensajes?.comandos?.sinPermisos || "⛔ No tienes permisos para usar este comando";
+                Logger.warn(`🚫 Intento de uso sin permisos (Owner): ${comandoNombre} por ${remitente}`);
 
                 try {
                     const jid = mensaje.key.remoteJid;
                     await socket.sendMessage(jid, { text: mensajeSinPermisos }, { quoted: mensaje });
                 } catch (sendError) {
-                    Logger.debug('No se pudo enviar mensaje de permisos admin');
+                    Logger.debug('No se pudo enviar mensaje de permisos');
                 }
                 return;
             }
-        }
 
-        // 3. Verificar si es grupo y el comando está permitido
-        if (this.esGrupo(mensaje) && comando.isGroup === false) {
-            try {
-                const jid = mensaje.key.remoteJid;
-                await socket.sendMessage(jid, { 
-                    text: "❌ Este comando solo puede usarse en chats privados." 
-                }, { quoted: mensaje });
-            } catch (sendError) {
-                Logger.debug('No se pudo enviar mensaje de restricción de grupo');
-            }
-            return;
-        }
+            // 2. Verificar permisos de admin en grupos 
+            if (comando.isAdmin && this.esGrupo(mensaje)) {
+                if (!await this.tienePermisosAdmin(socket, mensaje)) {
+                    const mensajeSinPermisos = "⛔ Solo los administradores pueden usar este comando";
+                    Logger.warn(`🚫 Intento de uso sin permisos (Admin): ${comandoNombre} por ${remitente}`);
 
-        // 4. Verificar si es privado y el comando está permitido
-        if (!this.esGrupo(mensaje) && comando.isPrivate === false) {
-            try {
-                const jid = mensaje.key.remoteJid;
-                await socket.sendMessage(jid, { 
-                    text: "❌ Este comando solo puede usarse en grupos." 
-                }, { quoted: mensaje });
-            } catch (sendError) {
-                Logger.debug('No se pudo enviar mensaje de restricción de privado');
-            }
-            return;
-        }
-
-        // ========== EJECUCIÓN DEL COMANDO ==========
-
-        // Ejecutar comando
-        Logger.info(`⚡ Ejecutando: ${comandoNombre} | Usuario: ${remitente} | Categoría: ${comando.category}`);
-
-        // ✅ EJECUTAR CON MANEJO DE ERRORES ESPECÍFICO PARA CONEXIÓN
-        try {
-            await comando.execute(socket, mensaje, args);
-            Logger.info(`✅ Comando ejecutado: ${comandoNombre}`);
-        } catch (errorEjecucion) {
-            // ✅ DETECTAR SI ES ERROR DE CONEXIÓN
-            if (errorEjecucion.message.includes('Connection Closed') || 
-                errorEjecucion.message.includes('socket') || 
-                errorEjecucion.message.includes('not connected') ||
-                errorEjecucion.message.includes('ENOTFOUND')) {
-                
-                Logger.error('🔌 Error de conexión en comando:', errorEjecucion.message);
-                
-                try {
-                    // ✅ INTENTAR OBTENER NUEVO SOCKET
-                    const bot = require('../main');
-                    const nuevoSocket = bot.obtenerSocket();
-                    
-                    if (nuevoSocket) {
+                    try {
                         const jid = mensaje.key.remoteJid;
-                        await nuevoSocket.sendMessage(jid, { 
-                            text: '🔌 *Conexión restablecida*\n\nEl bot se ha reconectado automáticamente.' 
-                        }, { quoted: mensaje });
+                        await socket.sendMessage(jid, { text: mensajeSinPermisos }, { quoted: mensaje });
+                    } catch (sendError) {
+                        Logger.debug('No se pudo enviar mensaje de permisos admin');
                     }
-                } catch (reconectarError) {
-                    Logger.error('No se pudo notificar reconexión:', reconectarError.message);
+                    return;
                 }
-            } else {
-                // Otro tipo de error
-                throw errorEjecucion;
             }
-        }
 
-    } catch (error) {
-        const mensajeError = Config.mensajes?.errores?.ejecucion || "💥 Error ejecutando comando:";
-        Logger.error(`${mensajeError} ${error.message}`);
+            // 3. Verificar si es grupo y el comando está permitido
+            if (this.esGrupo(mensaje) && comando.isGroup === false) {
+                try {
+                    const jid = mensaje.key.remoteJid;
+                    await socket.sendMessage(jid, { 
+                        text: "❌ Este comando solo puede usarse en chats privados." 
+                    }, { quoted: mensaje });
+                } catch (sendError) {
+                    Logger.debug('No se pudo enviar mensaje de restricción de grupo');
+                }
+                return;
+            }
 
-        // ✅ DETECCIÓN MEJORADA DE ERRORES DE CONEXIÓN
-        if (error.message.includes('Socket') || 
-            error.message.includes('connection') || 
-            error.message.includes('not connected') ||
-            error.message.includes('ENOTFOUND') ||
-            error.message.includes('ECONNREFUSED')) {
-            
-            Logger.error('🔌 Error de conexión detectado en comando ejecutar');
-            
-            // ✅ NO INTENTAR ENVIAR MENSAJE SI LA CONEXIÓN ESTÁ CAÍDA
-            return;
-        } else {
-            Logger.error('Stack trace:', error.stack);
-        }
+            // 4. Verificar si es privado y el comando está permitido
+            if (!this.esGrupo(mensaje) && comando.isPrivate === false) {
+                try {
+                    const jid = mensaje.key.remoteJid;
+                    await socket.sendMessage(jid, { 
+                        text: "❌ Este comando solo puede usarse en grupos." 
+                    }, { quoted: mensaje });
+                } catch (sendError) {
+                    Logger.debug('No se pudo enviar mensaje de restricción de privado');
+                }
+                return;
+            }
 
-        // Enviar mensaje de error al usuario (solo si no es error de conexión)
-        try {
-            const jid = mensaje.key.remoteJid;
-            await socket.sendMessage(jid, { 
-                text: "❌ Ocurrió un error al ejecutar el comando. Intenta más tarde." 
-            }, { quoted: mensaje });
-        } catch (sendError) {
-            Logger.debug('No se pudo enviar mensaje de error');
+            // ========== EJECUCIÓN DEL COMANDO ==========
+
+            // Ejecutar comando
+            Logger.info(`⚡ Ejecutando: ${comandoNombre} | Usuario: ${remitente} | Categoría: ${comando.category}`);
+
+            // ✅ EJECUTAR CON MANEJO DE ERRORES ESPECÍFICO PARA CONEXIÓN
+            try {
+                await comando.execute(socket, mensaje, args);
+                Logger.info(`✅ Comando ejecutado: ${comandoNombre}`);
+            } catch (errorEjecucion) {
+                // ✅ DETECTAR SI ES ERROR DE CONEXIÓN
+                if (errorEjecucion.message.includes('Connection Closed') || 
+                    errorEjecucion.message.includes('socket') || 
+                    errorEjecucion.message.includes('not connected') ||
+                    errorEjecucion.message.includes('ENOTFOUND')) {
+                    
+                    Logger.error('🔌 Error de conexión en comando:', errorEjecucion.message);
+                    
+                    try {
+                        // ✅ INTENTAR OBTENER NUEVO SOCKET
+                        const bot = require('../main');
+                        const nuevoSocket = bot.obtenerSocket();
+                        
+                        if (nuevoSocket) {
+                            const jid = mensaje.key.remoteJid;
+                            await nuevoSocket.sendMessage(jid, { 
+                                text: '🔌 *Conexión restablecida*\n\nEl bot se ha reconectado automáticamente.' 
+                            }, { quoted: mensaje });
+                        }
+                    } catch (reconectarError) {
+                        Logger.error('No se pudo notificar reconexión:', reconectarError.message);
+                    }
+                } else {
+                    // Otro tipo de error
+                    throw errorEjecucion;
+                }
+            }
+
+        } catch (error) {
+            const mensajeError = Config.mensajes?.errores?.ejecucion || "💥 Error ejecutando comando:";
+            Logger.error(`${mensajeError} ${error.message}`);
+
+            // ✅ DETECCIÓN MEJORADA DE ERRORES DE CONEXIÓN
+            if (error.message.includes('Socket') || 
+                error.message.includes('connection') || 
+                error.message.includes('not connected') ||
+                error.message.includes('ENOTFOUND') ||
+                error.message.includes('ECONNREFUSED')) {
+                
+                Logger.error('🔌 Error de conexión detectado en comando ejecutar');
+                
+                // ✅ NO INTENTAR ENVIAR MENSAJE SI LA CONEXIÓN ESTÁ CAÍDA
+                return;
+            } else {
+                Logger.error('Stack trace:', error.stack);
+            }
+
+            // Enviar mensaje de error al usuario (solo si no es error de conexión)
+            try {
+                const jid = mensaje.key.remoteJid;
+                await socket.sendMessage(jid, { 
+                    text: "❌ Ocurrió un error al ejecutar el comando. Intenta más tarde." 
+                }, { quoted: mensaje });
+            } catch (sendError) {
+                Logger.debug('No se pudo enviar mensaje de error');
+            }
         }
     }
-}
 
-    // ========== CONTADOR DE MENSAJES ==========
+    // ========== CONTADOR DE MENSAJES CORREGIDO ==========
     async contarMensaje(mensaje) {
         try {
             if (!this.gestorGrupos) return;
 
             const jid = mensaje.key.remoteJid;
             const remitenteCompleto = this.obtenerRemitenteCompleto(mensaje);
+            const tipoMensaje = determinarTipoMensaje(mensaje);
 
-            // Solo contar mensajes en grupos
-            if (this.esGrupo(mensaje)) {
-                await this.gestorGrupos.registrarMensaje(jid, remitenteCompleto);
-                Logger.debug(`📊 Mensaje contado para ${remitenteCompleto} en ${jid}`);
+            // Solo contar mensajes en grupos y que tengan un tipo de mensaje válido (no null)
+            if (this.esGrupo(mensaje) && tipoMensaje) {
+                // ✅ LLAMADA A LA FUNCIÓN DE REGISTRO CON EL TIPO DE ARCHIVO
+                await this.gestorGrupos.registrarArchivo(jid, remitenteCompleto, tipoMensaje);
+                Logger.debug(`📊 Mensaje (${tipoMensaje}) contado para ${remitenteCompleto} en ${jid}`);
             }
         } catch (error) {
             Logger.debug('Error contando mensaje:', error.message);
@@ -459,6 +554,7 @@ class GestorComandos {
         return remitente.split('@')[0]; // Solo el número
     }
 
+    // ✅ OBTENER TEXTO (Lógica original, pero sujeta a la función de clasificación arriba)
     obtenerTexto(mensaje) {
         if (mensaje.message?.conversation) {
             return mensaje.message.conversation;

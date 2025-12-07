@@ -300,7 +300,7 @@ async function updateProgress(sock, jid, messageKey, start, end, step, delayMs, 
 
 // Comando principal
 module.exports = {
-    command: ['play2', 'ytmp4', 'video'],
+    command: ['ytmp4', 'mp4', 'video'],
     description: 'Descargar video de YouTube con barra de progreso',
     isOwner: false,
     isGroup: true,

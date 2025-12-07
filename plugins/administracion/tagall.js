@@ -1,155 +1,134 @@
 const Logger = require('../../utils/logger');
 const GestorGrupos = require('../../database/gestorGrupos');
 
-// Crear una instancia global del gestor de grupos
-let gestorGruposGlobal = null;
-
-// Inicializar el gestor de grupos una sola vez
-function obtenerGestorGrupos() {
-    if (!gestorGruposGlobal) {
-        try {
-            gestorGruposGlobal = new GestorGrupos();
-            Logger.info('✅ GestorGrupos global inicializado en tagall');
-        } catch (error) {
-            Logger.error('❌ Error inicializando GestorGrupos global:', error);
-            return null;
-        }
-    }
-    return gestorGruposGlobal;
-}
-
 module.exports = {
-    command: ['tagall', 'todos', 'invocar','contador'],
-    description: 'Mencionar a todos los miembros con estadísticas',
+    command: ['tagall', 'todos', 'invocar', 'contador'],
+    description: 'Mencionar a todos los miembros con estadísticas en tiempo real',
     isGroup: true,
     isPrivate: false,
 
     async execute(sock, message, args) {
         const jid = message.key.remoteJid;
-        Logger.info(`🔍 Iniciando comando tagall para grupo: ${jid}`);
 
         try {
-            Logger.info('📋 Paso 1: Obteniendo información del grupo...');
+            Logger.info(`🔍 Iniciando tagall para: ${jid}`);
+
+            // 1. Obtener información actualizada del grupo
             const groupInfo = await sock.groupMetadata(jid);
-            Logger.info(`✅ Info grupo obtenida: ${groupInfo.subject} con ${groupInfo.participants?.length} miembros`);
-
-            Logger.info('📋 Paso 2: Obteniendo GestorGrupos...');
-            const gestorGrupos = obtenerGestorGrupos();
-
-            if (!gestorGrupos) {
-                throw new Error('No se pudo inicializar el gestor de grupos');
-            }
-            Logger.info('✅ GestorGrupos obtenido correctamente');
-
-            Logger.info('📋 Paso 3: Actualizando información del grupo...');
-            try {
-                await gestorGrupos.actualizarInfoGrupo(jid, groupInfo);
-                Logger.info('✅ Info grupo actualizada');
-            } catch (updateError) {
-                Logger.error('❌ Error actualizando info grupo:', updateError);
-                // Continuar aunque falle la actualización
-            }
-
-            Logger.info('📋 Paso 4: Obteniendo ranking de usuarios...');
-            let ranking = [];
-            try {
-                // Obtener TODOS los usuarios con mensajes
-                ranking = await gestorGrupos.obtenerRankingUsuarios(jid, 1000);
-                Logger.info(`✅ Ranking obtenido: ${ranking.length} usuarios con mensajes`);
-            } catch (rankingError) {
-                Logger.error('❌ Error obteniendo ranking:', rankingError);
-                // Continuar con ranking vacío
-            }
-
             const participantes = groupInfo.participants;
-            Logger.info(`📊 Total participantes: ${participantes.length}`);
+            
+            Logger.info(`✅ Grupo: ${groupInfo.subject}, Miembros: ${participantes.length}`);
 
-            Logger.info('📋 Paso 5: Combinando TODOS los usuarios...');
+            // 2. Inicializar gestor de grupos
+            const gestorGrupos = new GestorGrupos();
 
-            // Crear un mapa de TODOS los usuarios con sus mensajes
-            const usuariosMap = new Map();
+            // 3. ACTUALIZAR DATOS EN TIEMPO REAL
+            Logger.info('🔄 Actualizando datos del grupo en tiempo real...');
+            try {
+                await gestorGrupos.actualizarDatosGrupoTiempoReal(jid, groupInfo);
+                Logger.info('✅ Datos actualizados');
+            } catch (updateError) {
+                Logger.warn('⚠️ Error actualizando datos:', updateError.message);
+                // Continuar aunque falle
+            }
 
-            // Agregar usuarios del ranking (con mensajes)
-            ranking.forEach(usuario => {
-                usuariosMap.set(usuario.usuario_id, {
-                    ...usuario,
-                    tieneMensajes: true
-                });
+            // 4. Obtener usuarios con sus mensajes
+            Logger.info('📊 Obteniendo estadísticas de usuarios...');
+            let usuariosConMensajes = [];
+            try {
+                usuariosConMensajes = await gestorGrupos.obtenerUsuariosConMensajes(jid);
+                Logger.info(`✅ ${usuariosConMensajes.length} usuarios con datos`);
+            } catch (statsError) {
+                Logger.warn('⚠️ Error obteniendo estadísticas:', statsError.message);
+            }
+
+            // 5. Combinar todos los participantes
+            const todosUsuariosMap = new Map();
+
+            // Agregar usuarios con mensajes
+            usuariosConMensajes.forEach(usuario => {
+                todosUsuariosMap.set(usuario.usuario_id, usuario);
             });
 
-            // Agregar usuarios que no están en el ranking (sin mensajes)
+            // Agregar participantes que no están en la base de datos
             participantes.forEach(participante => {
-                if (!usuariosMap.has(participante.id)) {
-                    usuariosMap.set(participante.id, {
+                if (!todosUsuariosMap.has(participante.id)) {
+                    // Buscar si el participante es admin
+                    const esAdmin = !!participante.admin;
+                    
+                    todosUsuariosMap.set(participante.id, {
                         usuario_id: participante.id,
                         numero: participante.id.split('@')[0],
                         mensajes_totales: 0,
-                        es_admin: participante.admin,
-                        tieneMensajes: false
+                        mensajes_texto: 0,
+                        total_archivos: 0,
+                        es_admin: esAdmin
                     });
                 } else {
-                    // Actualizar información de admin para usuarios existentes
-                    usuariosMap.get(participante.id).es_admin = participante.admin;
+                    // Actualizar estado de admin
+                    todosUsuariosMap.get(participante.id).es_admin = !!participante.admin;
                 }
             });
 
-            // Convertir a array y ordenar por mensajes (descendente)
-            const todosUsuarios = Array.from(usuariosMap.values()).sort((a, b) => {
-                return b.mensajes_totales - a.mensajes_totales;
-            });
+            // Convertir a array y ordenar
+            const todosUsuarios = Array.from(todosUsuariosMap.values())
+                .sort((a, b) => {
+                    // Primero admins, luego por mensajes
+                    if (a.es_admin && !b.es_admin) return -1;
+                    if (!a.es_admin && b.es_admin) return 1;
+                    return b.mensajes_totales - a.mensajes_totales;
+                });
 
-            Logger.info(`📋 Paso 6: Construyendo mensaje con TODOS los usuarios (${todosUsuarios.length})...`);
+            // 6. Calcular totales
+            const totalMensajes = todosUsuarios.reduce((sum, user) => sum + user.mensajes_totales, 0);
+            const adminsCount = todosUsuarios.filter(u => u.es_admin).length;
+
+            // 7. Construir mensaje
             let mensaje = `🔔 *MENCIÓN GENERAL* 🔔\n\n`;
             mensaje += `🏷️ *Grupo:* ${groupInfo.subject}\n`;
-            mensaje += `👥 *Total miembros:* ${participantes.length}\n`;
-            mensaje += `📊 *Mensajes totales:* ${ranking.reduce((sum, user) => sum + (user.mensajes_totales || 0), 0)}\n\n`;
-            mensaje += `📝 *LISTA COMPLETA DE MIEMBROS:*\n\n`;
+            mensaje += `👥 *Miembros:* ${participantes.length}\n`;
+            mensaje += `👑 *Admins:* ${adminsCount}\n`;
+            mensaje += `📊 *Mensajes totales:* ${totalMensajes}\n`;
+            mensaje += `🕒 *Actualizado:* ${new Date().toLocaleTimeString()}\n\n`;
+            mensaje += `📝 *LISTA DE MIEMBROS:*\n\n`;
 
             const mentions = [];
             let contador = 1;
 
-            // Mostrar TODOS los usuarios en formato compacto - SIN LÍMITES
+            // Mostrar todos los usuarios
             for (const usuario of todosUsuarios) {
-                try {
-                    const iconoAdmin = usuario.es_admin ? ' 👑' : '';
-                    const mensajesText = usuario.mensajes_totales > 0 ? 
-                        `📨 ${usuario.mensajes_totales}` : 
-                        `📨 0`;
+                const iconoAdmin = usuario.es_admin ? '👑 ' : '';
+                const mensajesText = usuario.mensajes_totales > 0 ? 
+                    `📨${usuario.mensajes_totales}` : 
+                    `📨0`;
 
-                    // Formato: 1. @usuario 👑 📨 25
-                    mensaje += `${contador}. @${usuario.numero}${iconoAdmin} ${mensajesText}\n`;
-
-                    mentions.push(usuario.usuario_id);
-                    contador++;
-
-                    // ✅ ELIMINADO EL LÍMITE - MOSTRAR TODOS LOS USUARIOS
-
-                } catch (userError) {
-                    Logger.error(`❌ Error procesando usuario:`, userError);
-                }
+                mensaje += `${contador}. ${iconoAdmin}@${usuario.numero} ${mensajesText}\n`;
+                mentions.push(usuario.usuario_id);
+                contador++;
             }
 
-            mensaje += `\n✅ *Total mencionados: ${todosUsuarios.length} miembros*`;
+            mensaje += `\n✅ *Resumen:* ${mentions.length} miembros mencionados`;
 
-            Logger.info(`📤 Enviando mensaje con TODAS las menciones: ${mentions.length} usuarios...`);
+            // 8. Limitar menciones (WhatsApp tiene límite)
+            const mencionesEnviar = mentions.slice(0, 250);
 
-            Logger.info('📋 Paso 7: Enviando mensaje...');
+            // 9. Enviar mensaje
             await sock.sendMessage(jid, { 
                 text: mensaje,
-                mentions: mentions
+                mentions: mencionesEnviar
             }, { quoted: message });
 
-            Logger.info(`✅ Tagall enviado exitosamente con ${mentions.length} menciones en ${groupInfo.subject}`);
+            Logger.info(`✅ Tagall enviado: ${mencionesEnviar.length} menciones, ${totalMensajes} mensajes totales`);
 
         } catch (error) {
-            Logger.error('💥 ERROR CRÍTICO en comando tagall:', error);
-
+            Logger.error('❌ Error en tagall:', error);
+            
             try {
                 await sock.sendMessage(jid, { 
-                    text: `❌ Error al mencionar miembros:\n${error.message}` 
+                    text: '❌ Error al mencionar miembros.' 
                 }, { quoted: message });
             } catch (sendError) {
-                Logger.error('🚨 Error enviando mensaje de error:', sendError);
+                Logger.error('Error enviando mensaje de error:', sendError);
             }
         }
     }
