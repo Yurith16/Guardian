@@ -1,0 +1,74 @@
+{
+  "grupo_id": "120363425215114115@g.us",
+  "nombre": "Sin nombre",
+  "fecha_creacion": "2025-12-13T19:27:42.139Z",
+  "fecha_actualizacion": "2025-12-13T22:20:50.148Z",
+  "configuraciones": {
+    "antilink": true,
+    "antilink2": false,
+    "antibots": true,
+    "bienvenidas": true,
+    "despedidas": false,
+    "antispam": true,
+    "antimedia": false,
+    "antifake": true,
+    "modo_admin": false,
+    "nsfw_enabled": false
+  },
+  "estadisticas": {
+    "total_mensajes": 269,
+    "total_usuarios": 0,
+    "ultima_actividad": "2025-12-13T22:20:50.148Z"
+  },
+  "usuarios": {
+    "20015168381136@lid": {
+      "numero": "20015168381136",
+      "archivos": {
+        "imagenes": 22,
+        "videos": 1,
+        "audios": 2,
+        "documentos": 1,
+        "stickers": 9,
+        "otros": 0
+      },
+      "total_archivos": 35,
+      "mensajes_texto": 226,
+      "total_mensajes": 261,
+      "ultimo_mensaje": "2025-12-13T22:20:50.148Z",
+      "primer_mensaje": "2025-12-13T20:02:28.185Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sat Dec 13 2025",
+        "contador": 10
+      }
+    },
+    "103994714288225@lid": {
+      "numero": "103994714288225",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "mensajes_texto": 7,
+      "total_mensajes": 7,
+      "ultimo_mensaje": "2025-12-13T21:06:17.644Z",
+      "primer_mensaje": "2025-12-13T20:18:37.019Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sat Dec 13 2025",
+        "contador": 0
+      }
+    }
+  },
+  "administradores": [],
+  "silenciados": {},
+  "advertencias": {},
+  "moderacion": {
+    "ultima_accion": null,
+    "acciones_realizadas": 0
+  }
+}

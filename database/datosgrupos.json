@@ -1,0 +1,38 @@
+{
+  "120363425215114115@g.us": {
+    "mensajes": {
+      "20015168381136@lid": 11,
+      "103994714288225@lid": 5,
+      "120363425215114115@g.us": 4
+    },
+    "archivos": {},
+    "configs": {
+      "antilink": false,
+      "bienvenida": false,
+      "stickersHoy": {}
+    }
+  },
+  "120363402246635214@g.us": {
+    "mensajes": {
+      "123863132299383@lid": 1,
+      "103994714288225@lid": 6,
+      "120363402246635214@g.us": 1
+    },
+    "archivos": {
+      "103994714288225@lid": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "sticker": 0,
+        "otros": 0,
+        "total": 2
+      }
+    },
+    "configs": {
+      "antilink": false,
+      "bienvenida": false,
+      "stickersHoy": {}
+    }
+  }
+}

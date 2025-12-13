@@ -1,49 +1,12 @@
 const { iniciarConexion, ManejadorConexion } = require('./core/conexion');
-const GestorComandos = require('./core/comandos'); // ✅ Importa directamente
+const GestorComandos = require('./core/comandos');
 const Logger = require('./utils/logger');
 const Config = require('./config/bot.json');
 const fs = require('fs');
 const path = require('path');
 
-// ==============================
-// ✅ FUNCIONES GLOBALES
-// ==============================
-let gestorComandosGlobal = null;
-let socketGlobal = null;
-let botInstanceGlobal = null;
-
-function establecerGestorComandos(gc) {
-    gestorComandosGlobal = gc;
-    Logger.info('✅ Gestor de comandos establecido globalmente');
-}
-
-function establecerSocket(sock) {
-    socketGlobal = sock;
-    Logger.info('✅ Socket establecido globalmente');
-}
-
-function establecerBotInstance(bot) {
-    botInstanceGlobal = bot;
-    Logger.info('✅ Instancia del bot establecida globalmente');
-}
-
-function obtenerGestorComandos() {
-    return gestorComandosGlobal;
-}
-
-function obtenerSocket() {
-    return socketGlobal;
-}
-
-function obtenerBotInstance() {
-    return botInstanceGlobal;
-}
-
-// Exportar a global para uso en seguridad_mute.js y otros módulos
-global.obtenerGestorComandos = obtenerGestorComandos;
-global.obtenerSocket = obtenerSocket;
-global.obtenerBotInstance = obtenerBotInstance;
-// ==============================
+// ✅ CREAR VARIABLE GLOBAL PARA ACCESO DESDE COMANDOS
+global.botInstance = null;
 
 // Crear carpeta de logs si no existe
 const logsDir = path.join(__dirname, 'logs');
@@ -54,22 +17,11 @@ if (!fs.existsSync(logsDir)) {
 class GuardianBot {
     constructor() {
         this.config = Config;
-        
-        try {
-            // ✅ IMPORTAR CORRECTAMENTE GestorComandos
-            this.gestorComandos = new GestorComandos();
-            Logger.info('✅ Gestor de comandos inicializado');
-        } catch (error) {
-            Logger.error('❌ Error inicializando GestorComandos:', error);
-            // Crear gestor vacío para evitar crash
-            this.gestorComandos = {
-                cargarComandos: async () => Logger.warn('⚠️ Gestor de comandos no disponible'),
-                ejecutarComando: async () => {},
-                obtenerGestorGrupos: () => null,
-                contadorComandos: 0
-            };
-        }
-        
+
+        // ✅ IMPORTAR CORRECTAMENTE PASANDO THIS (LA INSTANCIA DEL BOT)
+        this.gestorComandos = new GestorComandos(this);
+        Logger.info('✅ Gestor de comandos inicializado');
+
         this.socket = null;
         this.manejadorConexion = null;
         this.estado = 'iniciando';
@@ -79,12 +31,11 @@ class GuardianBot {
             comandosEjecutados: 0
         };
 
-        // ✅ Exportar componentes globalmente
-        establecerGestorComandos(this.gestorComandos);
-        establecerBotInstance(this);
+        // ✅ ASIGNAR INSTANCIA GLOBAL
+        global.botInstance = this;
+        Logger.info('✅ Instancia global del bot asignada');
 
         this.configurarManejoSenales();
-        Logger.info('🛡️ GuardianBot inicializado');
     }
 
     async iniciar() {
@@ -112,8 +63,11 @@ class GuardianBot {
             this.socket = await this.manejadorConexion.iniciar();
             this.estado = 'conectado';
 
-            // ✅ Exportar socket globalmente
-            establecerSocket(this.socket);
+            // ✅ IMPORTANTE: Asignar la instancia al socket para que los comandos puedan acceder
+            if (this.socket) {
+                this.socket.guardianBot = this;
+                Logger.info('✅ Instancia asignada al socket');
+            }
 
             this.mostrarBanner();
             Logger.info('🚀 GuardianBot completamente operativo');
@@ -167,70 +121,35 @@ class GuardianBot {
             this.metrics.mensajesProcesados++;
             Logger.debug(`📨 Mensaje recibido [Total: ${this.metrics.mensajesProcesados}]`);
 
-            // ✅ VERIFICACIÓN ROBUSTA DEL SOCKET
-            let socket = this.obtenerSocketVerificado();
-            if (!socket) {
-                Logger.error('❌ No hay socket disponible, omitiendo mensaje');
-                return;
+            // ✅ VERIFICAR SI EL SOCKET ESTÁ ACTIVO Y TIENE LA INSTANCIA
+            if (!this.socket || !this.socket.user) {
+                Logger.warn('🔌 Socket no disponible, reconectando...');
+
+                try {
+                    this.socket = await this.manejadorConexion.iniciar();
+
+                    // ✅ RE-ASIGNAR INSTANCIA AL NUEVO SOCKET
+                    if (this.socket) {
+                        this.socket.guardianBot = this;
+                    }
+
+                    Logger.info('✅ Reconexión exitosa');
+                } catch (reconnectError) {
+                    Logger.error('❌ Error en reconexión automática:', reconnectError);
+                    return;
+                }
+            }
+
+            // ✅ ASEGURAR QUE EL SOCKET TENGA LA INSTANCIA
+            if (!this.socket.guardianBot) {
+                this.socket.guardianBot = this;
             }
 
             // Pasar el mensaje al gestor de comandos
-            await this.gestorComandos.ejecutarComando(socket, message);
+            await this.gestorComandos.ejecutarComando(this.socket, message);
 
         } catch (error) {
             Logger.error('❌ Error procesando mensaje:', error);
-            
-            // ✅ INTENTAR RECUPERAR CONEXIÓN SI ES ERROR DE SOCKET
-            if (error.message.includes('Connection Closed') || error.message.includes('socket') || error.message.includes('not connected')) {
-                Logger.warn('🔄 Error de conexión detectado, intentando recuperar...');
-                await this.reconectarSocket();
-            }
-        }
-    }
-
-    // ✅ MÉTODO PARA OBTENER SOCKET VERIFICADO
-    obtenerSocketVerificado() {
-        if (!this.manejadorConexion) {
-            Logger.error('❌ Manejador de conexión no disponible');
-            return null;
-        }
-
-        // Obtener socket verificado
-        const socket = this.manejadorConexion.obtenerSocket();
-        
-        if (!socket) {
-            Logger.warn('⚠️ Socket no disponible, intentando reconexión automática');
-            this.reconectarSocket();
-            return null;
-        }
-
-        return socket;
-    }
-
-    // ✅ RECONEXIÓN DE SOCKET
-    async reconectarSocket() {
-        try {
-            Logger.info('🔄 Intentando reconexión automática...');
-            
-            // Cerrar conexión anterior si existe
-            if (this.manejadorConexion) {
-                await this.manejadorConexion.cerrarConexion();
-            }
-            
-            // Crear nueva conexión
-            this.manejadorConexion = new ManejadorConexion(this);
-            this.socket = await this.manejadorConexion.iniciar();
-            this.estado = 'conectado';
-            
-            // ✅ Actualizar socket globalmente para mute
-            establecerSocket(this.socket);
-            
-            Logger.info('✅ Reconexión exitosa');
-            return true;
-        } catch (error) {
-            Logger.error('❌ Error en reconexión:', error);
-            this.estado = 'desconectado';
-            return false;
         }
     }
 
@@ -282,7 +201,10 @@ class GuardianBot {
 
     // Método para obtener el socket (útil para plugins)
     obtenerSocket() {
-        return this.obtenerSocketVerificado();
+        if (this.socket && !this.socket.guardianBot) {
+            this.socket.guardianBot = this;
+        }
+        return this.socket;
     }
 
     // Método para obtener configuración
@@ -300,46 +222,18 @@ class GuardianBot {
         return this.gestorComandos;
     }
 
-    // Método para obtener manejador de conexión
-    obtenerManejadorConexion() {
-        return this.manejadorConexion;
-    }
-
-    // ✅ Método para obtener gestor de grupos
+    // ✅ MÉTODO PARA OBTENER GESTOR DE GRUPOS DIRECTAMENTE
     obtenerGestorGrupos() {
         if (!this.gestorComandos) {
             Logger.warn('⚠️ Gestor de comandos no disponible');
             return null;
         }
-        
-        const gestorGrupos = this.gestorComandos.obtenerGestorGrupos();
-        if (!gestorGrupos) {
-            Logger.warn('⚠️ Gestor de grupos no disponible');
-        }
-        
-        return gestorGrupos;
-    }
-
-    // ✅ Método para debugging del sistema de mute
-    obtenerEstadisticasMute() {
-        if (!this.manejadorConexion) {
-            return { error: 'Manejador de conexión no disponible' };
-        }
-        
-        const manejadorMute = this.manejadorConexion.obtenerManejadorMute?.();
-        if (!manejadorMute || !manejadorMute.obtenerEstadisticas) {
-            return { error: 'Manejador de mute no disponible' };
-        }
-        
-        return manejadorMute.obtenerEstadisticas();
+        return this.gestorComandos.obtenerGestorGrupos();
     }
 }
 
 // Crear instancia global para acceso desde comandos
 const botInstance = new GuardianBot();
-
-// ✅ Exportar la instancia del bot globalmente
-establecerBotInstance(botInstance);
 
 // Manejo de errores no capturados
 process.on('uncaughtException', (error) => {
@@ -355,13 +249,4 @@ process.on('unhandledRejection', (reason, promise) => {
 // Iniciar la aplicación
 botInstance.iniciar();
 
-// ✅ Exportar las funciones globales y la instancia
-module.exports = {
-    botInstance,
-    obtenerGestorComandos,
-    obtenerSocket,
-    obtenerBotInstance,
-    establecerGestorComandos,
-    establecerSocket,
-    establecerBotInstance
-};
+module.exports = botInstance;

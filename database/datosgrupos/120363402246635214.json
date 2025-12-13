@@ -3,7 +3,7 @@
   "nombre": "꧁​𓊈🍃𝐊𝐚𝐫𝐛𝐨𝐭 𝐎𝐟𝐢𝐜𝐢𝐚𝐥🍃𓊉꧂",
   "descripcion": "​¡Bienvenidos a la comunidad oficial de Karbot!\n\n​Este es el espacio para usuarios y fanáticos del bot. Únete para usar sus comandos, recibir soporte y conocer las novedades.\n\n​🗃️ Reglas del Grupo\n\n​🚫 Respeto: Sé amable con todos. No se permiten insultos, spam o lenguaje ofensivo.\n\n​⚠️ No Spam: Evita la publicidad no autorizada y el envío de contenido masivo.\n\n​🤖 Uso del Bot: Para ver el menú de comandos, escribe .menu.\n\n​● Karbot - Funciones\n\n​🎵 Multimedia: Descargas de música y videos de YouTube, TikTok , etc.\n\n​🎮 Juegos: Variedad de juegos interactivos y de economía para el grupo.\n\n​⚙️ Administración: Herramientas para moderar el grupo.\n​● Contacto\n\n_*KARBOT ESTÁ EN CONSTANTE DESARROLLO*_\n\n​Para preguntas o soporte, puedes contactar al desarrollador directamente.\n\n​Hernández: wa.me/50496926150\n\nhttps://chat.whatsapp.com/JeKUpOxymP4F6faK3B2Jqb?mode=wwc",
   "fecha_creacion": "2025-11-27T01:50:09.619Z",
-  "fecha_actualizacion": "2025-11-28T17:46:37.090Z",
+  "fecha_actualizacion": "2025-12-13T21:11:50.210Z",
   "configuraciones": {
     "antilink": false,
     "antibots": true,
@@ -12,9 +12,9 @@
     "antispam": false
   },
   "estadisticas": {
-    "total_mensajes": 2323,
+    "total_mensajes": 2376,
     "total_usuarios": 52,
-    "ultima_actividad": "2025-11-28T17:46:37.090Z"
+    "ultima_actividad": "2025-12-13T21:11:50.210Z"
   },
   "usuarios": {
     "20015168381136@lid": {
@@ -45,9 +45,11 @@
       "numero": "96791768891525",
       "mensajes_totales": 3,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:03:04.911Z",
+      "ultimo_mensaje": "2025-12-13T21:11:50.210Z",
       "primer_mensaje": "2025-11-27T01:59:54.473Z",
-      "es_admin": false
+      "es_admin": false,
+      "mensajes_texto": 2,
+      "total_mensajes": 2
     },
     "205862731792516@lid": {
       "numero": "205862731792516",
@@ -117,9 +119,11 @@
       "numero": "209701778280529",
       "mensajes_totales": 9,
       "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T03:01:12.628Z",
+      "ultimo_mensaje": "2025-12-13T20:02:24.775Z",
       "primer_mensaje": "2025-11-27T02:54:48.054Z",
-      "es_admin": false
+      "es_admin": false,
+      "mensajes_texto": 11,
+      "total_mensajes": 11
     },
     "49151706427450@lid": {
       "numero": "49151706427450",
@@ -192,6 +196,27 @@
       "ultimo_mensaje": "2025-11-27T21:08:31.270Z",
       "primer_mensaje": "2025-11-27T21:07:59.981Z",
       "es_admin": false
+    },
+    "103994714288225@lid": {
+      "numero": "103994714288225",
+      "archivos": {
+        "imagenes": 11,
+        "videos": 2,
+        "audios": 2,
+        "documentos": 1,
+        "stickers": 0,
+        "otros": 13
+      },
+      "total_archivos": 29,
+      "mensajes_texto": 11,
+      "total_mensajes": 40,
+      "ultimo_mensaje": "2025-12-13T21:10:16.293Z",
+      "primer_mensaje": "2025-12-13T19:57:10.639Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sat Dec 13 2025",
+        "contador": 0
+      }
     }
   },
   "administradores": [

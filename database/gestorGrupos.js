@@ -25,7 +25,7 @@ class GestorGrupos {
             if (!fs.existsSync(rutaArchivo)) {
                 return null;
             }
-            
+
             const datos = JSON.parse(fs.readFileSync(rutaArchivo, 'utf8'));
             return datos;
         } catch (error) {
@@ -37,7 +37,7 @@ class GestorGrupos {
     async inicializarGrupo(grupoId, grupoInfo = null) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
-            
+
             let datosBase = {
                 grupo_id: grupoId,
                 nombre: grupoInfo?.subject || 'Sin nombre',
@@ -53,7 +53,6 @@ class GestorGrupos {
                     antimedia: false,
                     antifake: true,
                     modo_admin: false,
-                    // ✅ NUEVA CONFIGURACIÓN NSFW
                     nsfw_enabled: false 
                 },
                 estadisticas: {
@@ -88,13 +87,13 @@ class GestorGrupos {
     async guardarDatos(grupoId, datos) {
         try {
             const rutaArchivo = this.obtenerRutaGrupo(grupoId);
-            
+
             datos.fecha_actualizacion = new Date().toISOString();
-            
+
             if (datos.estadisticas) {
                 datos.estadisticas.ultima_actividad = new Date().toISOString();
             }
-            
+
             fs.writeFileSync(rutaArchivo, JSON.stringify(datos, null, 2), 'utf8');
             return true;
         } catch (error) {
@@ -103,7 +102,9 @@ class GestorGrupos {
         }
     }
 
-    // ========== MÉTODO ACTUALIZADO PARA CONTAR TODOS LOS MENSAJES ==========
+    // =====================================================================
+    // ✅ MÉTODO CORREGIDO: registrarMensaje
+    // =====================================================================
     async registrarMensaje(grupoId, usuarioId, esTexto = true, tipoArchivo = null) {
         try {
             let datos = await this.obtenerDatos(grupoId);
@@ -114,7 +115,7 @@ class GestorGrupos {
 
             const fechaHoy = new Date().toDateString();
 
-            // Inicializar usuario si no existe
+            // Inicializar usuario si no existe (con valores por defecto)
             if (!datos.usuarios[usuarioId]) {
                 datos.usuarios[usuarioId] = {
                     numero: usuarioId.split('@')[0],
@@ -146,33 +147,46 @@ class GestorGrupos {
                 usuario.es_admin = datos.administradores.includes(usuarioId);
             }
 
+            let mensajeContado = false;
+
             if (esTexto) {
                 // Es un mensaje de texto
                 usuario.mensajes_texto = (usuario.mensajes_texto || 0) + 1;
+                mensajeContado = true;
             } else if (tipoArchivo) {
                 // Es un archivo
-                if (tipoArchivo === 'sticker') {
+                if (tipoArchivo === 'stickers') {
                     if (usuario.stickers_diarios.fecha !== fechaHoy) {
                         usuario.stickers_diarios.fecha = fechaHoy;
                         usuario.stickers_diarios.contador = 0;
                     }
 
+                    // Lógica para limitar stickers diarios (el límite es 10)
                     if (usuario.stickers_diarios.contador < 10) {
                         usuario.stickers_diarios.contador++;
-                    } else {
-                        // Límite alcanzado, contar como mensaje normal
-                        usuario.mensajes_texto = (usuario.mensajes_texto || 0) + 1;
-                    }
-                }
 
-                if (usuario.archivos[tipoArchivo] !== undefined) {
-                    usuario.archivos[tipoArchivo] = (usuario.archivos[tipoArchivo] || 0) + 1;
-                    usuario.total_archivos = (usuario.total_archivos || 0) + 1;
+                        // Contar el archivo y aumentar el total_archivos
+                        usuario.archivos.stickers = (usuario.archivos.stickers || 0) + 1;
+                        usuario.total_archivos = (usuario.total_archivos || 0) + 1;
+                        mensajeContado = true;
+                    } else {
+                        mensajeContado = false; 
+                    }
+                } else {
+                    // Otros tipos de archivos (imágenes, videos, etc.)
+                    if (usuario.archivos[tipoArchivo] !== undefined) {
+                        usuario.archivos[tipoArchivo] = (usuario.archivos[tipoArchivo] || 0) + 1;
+                        usuario.total_archivos = (usuario.total_archivos || 0) + 1;
+                        mensajeContado = true;
+                    }
                 }
             }
 
-            // Calcular total de mensajes
-            usuario.total_mensajes = (usuario.mensajes_texto || 0) + (usuario.total_archivos || 0);
+            if (mensajeContado) {
+                // Solo incrementamos el contador total si el mensaje/archivo fue efectivamente contado
+                usuario.total_mensajes = (usuario.total_mensajes || 0) + 1;
+            }
+
             usuario.ultimo_mensaje = new Date().toISOString();
 
             // Actualizar estadísticas del grupo
@@ -184,7 +198,10 @@ class GestorGrupos {
                 };
             }
 
-            datos.estadisticas.total_mensajes = (datos.estadisticas.total_mensajes || 0) + 1;
+            if (mensajeContado) {
+                datos.estadisticas.total_mensajes = (datos.estadisticas.total_mensajes || 0) + 1;
+            }
+
             datos.estadisticas.ultima_actividad = new Date().toISOString();
 
             return await this.guardarDatos(grupoId, datos);
@@ -210,7 +227,7 @@ class GestorGrupos {
 
             // Actualizar información básica
             datos.nombre = groupInfo.subject || datos.nombre;
-            
+
             // Actualizar administradores
             if (groupInfo.participants) {
                 datos.administradores = groupInfo.participants
@@ -247,7 +264,7 @@ class GestorGrupos {
                 .map(([usuarioId, usuario]) => ({
                     usuario_id: usuarioId,
                     numero: usuario.numero,
-                    mensajes_totales: usuario.total_mensajes || usuario.total_archivos || 0,
+                    mensajes_totales: usuario.total_mensajes || 0,
                     es_admin: usuario.es_admin || false
                 }))
                 .sort((a, b) => b.mensajes_totales - a.mensajes_totales)
@@ -268,12 +285,12 @@ class GestorGrupos {
                 const nuevoGrupo = await this.inicializarGrupo(grupoId);
                 return nuevoGrupo ? nuevoGrupo.configuraciones.modo_admin === true : false;
             }
-            
+
             if (!datos.configuraciones) {
                 datos.configuraciones = { modo_admin: false };
                 await this.guardarDatos(grupoId, datos);
             }
-            
+
             return datos.configuraciones.modo_admin === true;
         } catch (error) {
             Logger.error('Error obteniendo modo admin:', error);
@@ -288,23 +305,23 @@ class GestorGrupos {
                 datos = await this.inicializarGrupo(grupoId);
                 if (!datos) return false;
             }
-            
+
             if (!datos.configuraciones) {
                 datos.configuraciones = {};
             }
-            
+
             datos.configuraciones.modo_admin = true;
-            
+
             if (!datos.moderacion) {
                 datos.moderacion = {};
             }
-            
+
             datos.moderacion.ultima_accion = {
                 tipo: 'activar_modo_admin',
                 fecha: new Date().toISOString()
             };
             datos.moderacion.acciones_realizadas = (datos.moderacion.acciones_realizadas || 0) + 1;
-            
+
             return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error('Error activando modo admin:', error);
@@ -319,23 +336,23 @@ class GestorGrupos {
                 datos = await this.inicializarGrupo(grupoId);
                 if (!datos) return false;
             }
-            
+
             if (!datos.configuraciones) {
                 datos.configuraciones = {};
             }
-            
+
             datos.configuraciones.modo_admin = false;
-            
+
             if (!datos.moderacion) {
                 datos.moderacion = {};
             }
-            
+
             datos.moderacion.ultima_accion = {
                 tipo: 'desactivar_modo_admin',
                 fecha: new Date().toISOString()
             };
             datos.moderacion.acciones_realizadas = (datos.moderacion.acciones_realizadas || 0) + 1;
-            
+
             return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error('Error desactivando modo admin:', error);
@@ -520,7 +537,7 @@ class GestorGrupos {
 
             const usuario = datos.usuarios[usuarioId];
             const fechaHoy = new Date().toDateString();
-            const stickersHoy = usuario.stickers_diarios.fecha === fechaHoy ? usuario.stickers_diarios.contador : 0;
+            const stickersHoy = usuario.stickers_diarios?.fecha === fechaHoy ? usuario.stickers_diarios.contador : 0;
 
             return {
                 numero: usuario.numero,
@@ -530,8 +547,8 @@ class GestorGrupos {
                 total_mensajes: usuario.total_mensajes || 0,
                 stickers_hoy: stickersHoy,
                 stickers_restantes: Math.max(0, 10 - stickersHoy),
-                ultimo_mensaje: usuario.ultimo_mensaje || usuario.ultimo_archivo,
-                primer_mensaje: usuario.primer_mensaje || usuario.primer_archivo,
+                ultimo_mensaje: usuario.ultimo_mensaje,
+                primer_mensaje: usuario.primer_mensaje,
                 es_admin: usuario.es_admin || false
             };
         } catch (error) {
@@ -540,6 +557,7 @@ class GestorGrupos {
         }
     }
 
+    // ========== MÉTODO CORREGIDO: obtenerTopActivos ==========
     async obtenerTopActivos(grupoId, limite = 20) {
         try {
             const datos = await this.obtenerDatos(grupoId);
@@ -549,12 +567,21 @@ class GestorGrupos {
                 .map(([usuarioId, usuario]) => ({
                     usuario_id: usuarioId,
                     numero: usuario.numero,
-                    total_mensajes: usuario.total_mensajes || usuario.total_archivos || 0,
-                    archivos: usuario.archivos,
-                    ultimo_mensaje: usuario.ultimo_mensaje || usuario.ultimo_archivo,
+                    total_archivos: usuario.total_archivos || 0, // ✅ CAMBIO CRÍTICO: usar total_archivos
+                    archivos: usuario.archivos || {
+                        imagenes: 0,
+                        videos: 0,
+                        audios: 0,
+                        documentos: 0,
+                        stickers: 0,
+                        otros: 0
+                    },
+                    total_mensajes: usuario.total_mensajes || 0,
+                    ultimo_mensaje: usuario.ultimo_mensaje,
                     es_admin: usuario.es_admin || false
                 }))
-                .sort((a, b) => b.total_mensajes - a.total_mensajes)
+                // ✅ CAMBIO CRÍTICO: ordenar por total_archivos en lugar de total_mensajes
+                .sort((a, b) => b.total_archivos - a.total_archivos)
                 .slice(0, limite);
 
             return usuariosArray;
@@ -571,7 +598,7 @@ class GestorGrupos {
             if (!datos || !datos.configuraciones) {
                 return null;
             }
-            
+
             return datos.configuraciones[clave];
         } catch (error) {
             Logger.error(`Error obteniendo configuración ${clave}:`, error);
@@ -586,17 +613,17 @@ class GestorGrupos {
                 datos = await this.inicializarGrupo(grupoId);
                 if (!datos) return false;
             }
-            
+
             if (!datos.configuraciones) {
                 datos.configuraciones = {};
             }
-            
+
             datos.configuraciones[clave] = valor;
-            
+
             if (!datos.moderacion) {
                 datos.moderacion = {};
             }
-            
+
             datos.moderacion.ultima_accion = {
                 tipo: 'configuracion',
                 clave: clave,
@@ -604,7 +631,7 @@ class GestorGrupos {
                 fecha: new Date().toISOString()
             };
             datos.moderacion.acciones_realizadas = (datos.moderacion.acciones_realizadas || 0) + 1;
-            
+
             return await this.guardarDatos(grupoId, datos);
         } catch (error) {
             Logger.error(`Error actualizando configuración ${clave}:`, error);
@@ -612,12 +639,11 @@ class GestorGrupos {
         }
     }
 
-    // ========== MÉTODOS NSFW (NUEVOS) ==========
+    // ========== MÉTODOS NSFW ==========
     async obtenerEstadoNSFW(grupoId) {
         try {
             const datos = await this.obtenerDatos(grupoId);
             if (!datos || !datos.configuraciones || datos.configuraciones.nsfw_enabled === undefined) {
-                // Si la configuración no existe, asegura la inicialización y devuelve el valor por defecto
                 await this.inicializarGrupo(grupoId); 
                 return false; 
             }
@@ -629,10 +655,8 @@ class GestorGrupos {
     }
 
     async actualizarEstadoNSFW(grupoId, activo) {
-        // Reutiliza el método genérico actualizarConfiguracion
         return await this.actualizarConfiguracion(grupoId, 'nsfw_enabled', activo);
     }
-    // ===========================================
 
     async obtenerEstadoAntilink2(grupoId) {
         try {
@@ -640,7 +664,7 @@ class GestorGrupos {
             if (!datos || !datos.configuraciones) {
                 return false;
             }
-            
+
             return datos.configuraciones.antilink2 === true;
         } catch (error) {
             Logger.error('Error obteniendo estado antilink2:', error);
@@ -665,8 +689,8 @@ class GestorGrupos {
             return {
                 grupo_id: datos.grupo_id,
                 nombre: datos.nombre,
-                total_mensajes: datos.estadisticas.total_mensajes || 0,
-                total_usuarios: datos.estadisticas.total_usuarios || 0,
+                total_mensajes: datos.estadisticas?.total_mensajes || 0,
+                total_usuarios: datos.estadisticas?.total_usuarios || 0,
                 usuarios_activos: usuariosArray.length,
                 usuario_mas_activo: usuarioMasActivo ? {
                     numero: usuarioMasActivo.numero,
@@ -674,7 +698,7 @@ class GestorGrupos {
                 } : null,
                 configuraciones: datos.configuraciones,
                 fecha_creacion: datos.fecha_creacion,
-                ultima_actividad: datos.estadisticas.ultima_actividad,
+                ultima_actividad: datos.estadisticas?.ultima_actividad,
                 moderacion: datos.moderacion
             };
         } catch (error) {
