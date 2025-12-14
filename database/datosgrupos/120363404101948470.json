@@ -1,0 +1,324 @@
+{
+  "grupo_id": "120363404101948470@g.us",
+  "nombre": "Sin nombre",
+  "fecha_creacion": "2025-11-30T03:36:25.158Z",
+  "fecha_actualizacion": "2025-12-02T01:20:30.700Z",
+  "configuraciones": {
+    "antilink": true,
+    "antibots": true,
+    "bienvenidas": true,
+    "despedidas": false
+  },
+  "estadisticas": {
+    "total_mensajes": 86,
+    "total_usuarios": 0,
+    "ultima_actividad": "2025-12-02T01:20:30.700Z"
+  },
+  "usuarios": {
+    "51385575944314@lid": {
+      "numero": "51385575944314",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 10,
+        "otros": 0
+      },
+      "total_archivos": 10,
+      "ultimo_archivo": "2025-11-30T03:53:50.268Z",
+      "primer_archivo": "2025-11-30T03:36:25.158Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Nov 30 2025",
+        "contador": 10
+      }
+    },
+    "128720270561502@lid": {
+      "numero": "128720270561502",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 10,
+        "otros": 0
+      },
+      "total_archivos": 10,
+      "ultimo_archivo": "2025-11-30T04:01:24.415Z",
+      "primer_archivo": "2025-11-30T03:36:56.851Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Nov 30 2025",
+        "contador": 10
+      }
+    },
+    "153609757044875@lid": {
+      "numero": "153609757044875",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 2,
+        "otros": 0
+      },
+      "total_archivos": 2,
+      "ultimo_archivo": "2025-11-30T03:38:48.836Z",
+      "primer_archivo": "2025-11-30T03:38:09.069Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Nov 30 2025",
+        "contador": 2
+      }
+    },
+    "16707892584675@lid": {
+      "numero": "16707892584675",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 2,
+        "documentos": 0,
+        "stickers": 2,
+        "otros": 0
+      },
+      "total_archivos": 4,
+      "ultimo_archivo": "2025-12-01T17:45:42.244Z",
+      "primer_archivo": "2025-11-30T03:49:15.369Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Nov 30 2025",
+        "contador": 2
+      }
+    },
+    "226525232263209@lid": {
+      "numero": "226525232263209",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "stickers": 8,
+        "otros": 0
+      },
+      "total_archivos": 10,
+      "ultimo_archivo": "2025-12-02T01:01:18.405Z",
+      "primer_archivo": "2025-11-30T03:57:32.685Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Nov 30 2025",
+        "contador": 8
+      }
+    },
+    "97384239509593@lid": {
+      "numero": "97384239509593",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 1,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 2,
+        "otros": 0
+      },
+      "total_archivos": 4,
+      "ultimo_archivo": "2025-12-01T05:16:58.736Z",
+      "primer_archivo": "2025-11-30T04:06:42.546Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 1
+      }
+    },
+    "29902166327441@lid": {
+      "numero": "29902166327441",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 4,
+        "otros": 0
+      },
+      "total_archivos": 4,
+      "ultimo_archivo": "2025-12-02T00:28:38.478Z",
+      "primer_archivo": "2025-11-30T04:21:50.767Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Tue Dec 02 2025",
+        "contador": 1
+      }
+    },
+    "75054687731913@lid": {
+      "numero": "75054687731913",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "stickers": 1,
+        "otros": 0
+      },
+      "total_archivos": 3,
+      "ultimo_archivo": "2025-12-01T12:38:13.041Z",
+      "primer_archivo": "2025-11-30T17:26:21.750Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 1
+      }
+    },
+    "181234852471021@lid": {
+      "numero": "181234852471021",
+      "archivos": {
+        "imagenes": 5,
+        "videos": 4,
+        "audios": 4,
+        "documentos": 0,
+        "stickers": 4,
+        "otros": 0
+      },
+      "total_archivos": 17,
+      "ultimo_archivo": "2025-12-01T21:29:17.493Z",
+      "primer_archivo": "2025-11-30T17:29:04.059Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 1
+      }
+    },
+    "148314095894621@lid": {
+      "numero": "148314095894621",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 5,
+        "otros": 0
+      },
+      "total_archivos": 5,
+      "ultimo_archivo": "2025-12-01T17:49:22.601Z",
+      "primer_archivo": "2025-11-30T19:30:12.212Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 3
+      }
+    },
+    "129549786439767@lid": {
+      "numero": "129549786439767",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "stickers": 2,
+        "otros": 0
+      },
+      "total_archivos": 4,
+      "ultimo_archivo": "2025-12-02T00:50:34.513Z",
+      "primer_archivo": "2025-11-30T19:36:01.431Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Tue Dec 02 2025",
+        "contador": 2
+      }
+    },
+    "144495735734415@lid": {
+      "numero": "144495735734415",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 6,
+        "otros": 0
+      },
+      "total_archivos": 6,
+      "ultimo_archivo": "2025-12-02T01:11:52.069Z",
+      "primer_archivo": "2025-12-01T02:10:09.113Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Tue Dec 02 2025",
+        "contador": 4
+      }
+    },
+    "181037166555257@lid": {
+      "numero": "181037166555257",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "stickers": 2,
+        "otros": 0
+      },
+      "total_archivos": 3,
+      "ultimo_archivo": "2025-12-02T01:20:30.700Z",
+      "primer_archivo": "2025-12-01T02:11:31.406Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Tue Dec 02 2025",
+        "contador": 1
+      }
+    },
+    "52145332207780@lid": {
+      "numero": "52145332207780",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 1,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 1,
+      "ultimo_archivo": "2025-12-01T06:05:43.516Z",
+      "primer_archivo": "2025-12-01T06:05:43.516Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      }
+    },
+    "33698313408767@lid": {
+      "numero": "33698313408767",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 1,
+        "documentos": 0,
+        "stickers": 1,
+        "otros": 0
+      },
+      "total_archivos": 2,
+      "ultimo_archivo": "2025-12-01T15:13:44.568Z",
+      "primer_archivo": "2025-12-01T15:10:11.916Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 1
+      }
+    },
+    "92986511769835@lid": {
+      "numero": "92986511769835",
+      "archivos": {
+        "imagenes": 1,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 1,
+      "ultimo_archivo": "2025-12-01T18:31:06.735Z",
+      "primer_archivo": "2025-12-01T18:31:06.735Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      }
+    }
+  },
+  "administradores": []
+}

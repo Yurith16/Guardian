@@ -3,8 +3,6 @@ const chalk = require('chalk')
 const path = require('path')
 const qrcode = require('qrcode-terminal')
 const ManejadorAntispam = require('./seguridad_antispam');
-const ManejadorAntilink2 = require('./seguridad_antilink2');
-const { ManejadorMute, setFuncionesGlobales } = require('./seguridad_mute');
 const ManejadorEventosGrupo = require('./manejador_eventos');
 const {
     default: makeWASocket,
@@ -29,7 +27,6 @@ class ManejadorConexion {
         this.guardianBot = guardianBot
         this.sock = null
         this.manejadorAntispam = new ManejadorAntispam();
-        this.manejadorMute = new ManejadorMute();
         this.manejadorEventos = new ManejadorEventosGrupo();
         this.estaConectado = false
         this.reconexionIntentos = 0
@@ -38,35 +35,10 @@ class ManejadorConexion {
         this.intentosSesionInvalida = 0
         this.maxIntentosSesionInvalida = 3
         this.manejadorSeguridad = new ManejadorSeguridad()
-        this.manejadorAntilink2 = new ManejadorAntilink2();
         this.lastActivity = Date.now()
-
-        // ✅ CONFIGURAR FUNCIONES GLOBALES PARA MUTE
-        this.configurarFuncionesGlobales();
 
         // ✅ Iniciar heartbeat automático
         this.iniciarHeartbeat()
-    }
-
-    // ✅ CONFIGURAR FUNCIONES GLOBALES PARA MUTE
-    configurarFuncionesGlobales() {
-        try {
-            if (setFuncionesGlobales) {
-                setFuncionesGlobales({
-                    obtenerGestorComandos: () => {
-                        return this.guardianBot?.obtenerGestorComandos?.() || null;
-                    },
-                    obtenerBotInstance: () => {
-                        return this.guardianBot || null;
-                    }
-                });
-                Logger.info('✅ Funciones globales para mute configuradas');
-            } else {
-                Logger.warn('⚠️ setFuncionesGlobales no disponible en ManejadorMute');
-            }
-        } catch (error) {
-            Logger.error('❌ Error configurando funciones globales:', error);
-        }
     }
 
     // ✅ HEARTBEAT AUTOMÁTICO
@@ -74,7 +46,6 @@ class ManejadorConexion {
         setInterval(() => {
             if (this.sock && this.estaConectado) {
                 try {
-                    // Mantener presencia 'available' cada minuto
                     this.sock.sendPresenceUpdate('available')
                     this.lastActivity = Date.now()
                 } catch (error) {
@@ -124,11 +95,15 @@ class ManejadorConexion {
 
                 if (this.intentosSesionInvalida >= this.maxIntentosSesionInvalida) {
                     console.log(chalk.red('\n❌ SESIÓN CORRUPTA DETECTADA'))
-                    console.log(chalk.yellow('💡 Se borrará la sesión automáticamente e intentará un nuevo QR.\n'))
-                    this.limpiarSesionCompleta(false); // Borrar sesión y forzar QR
-                    this.intentosSesionInvalida = 0;
-                    reconectando = false;
-                    return;
+                    console.log(chalk.yellow('💡 Solución:'))
+                    console.log(chalk.cyan('   1. Borra la carpeta "sessions" manualmente'))
+                    console.log(chalk.cyan('   2. Reinicia el bot'))
+                    console.log(chalk.cyan('   3. Escanea el código QR nuevamente\n'))
+
+                    // En Docker/Pterodactyl no podemos esperar input, continuar automáticamente
+                    console.log(chalk.magenta('⏳ Continuando automáticamente en 5 segundos...'))
+                    await new Promise(resolve => setTimeout(resolve, 5000))
+                    this.intentosSesionInvalida = 0
                 }
             } else {
                 console.log(chalk.yellow('⚠️ No se encontró sesión. Usando código QR automático...'))
@@ -153,10 +128,9 @@ class ManejadorConexion {
                 syncFullHistory: false,
                 getMessage: async () => ({}),
                 msgRetryCounterCache,
-                // ✅ CORRECCIÓN 3: AUMENTAR TIMEOUTS PARA ESTABILIDAD
-                defaultQueryTimeoutMs: 120000, 
-                connectTimeoutMs: 60000,
-                keepAliveIntervalMs: 20000,
+                defaultQueryTimeoutMs: 60000,
+                connectTimeoutMs: 30000,
+                keepAliveIntervalMs: 10000,
                 emitOwnEvents: true,
                 fireInitQueries: true,
             })
@@ -172,9 +146,15 @@ class ManejadorConexion {
             console.error(chalk.red('❌ Error en conexión:'), error.message)
 
             // ✅ INCREMENTAR CONTADOR SI HAY SESIÓN PERO FALLA LA CONEXIÓN
-            if (this.existeSesion() && !error.message.includes('No such file or directory')) {
+            if (this.existeSesion()) {
                 this.intentosSesionInvalida++
                 console.log(chalk.yellow(`⚠️ Intento ${this.intentosSesionInvalida}/${this.maxIntentosSesionInvalida} con sesión existente`))
+
+                if (this.intentosSesionInvalida >= this.maxIntentosSesionInvalida) {
+                    console.log(chalk.red('\n💡 La sesión parece corrupta. Si los errores continúan:'))
+                    console.log(chalk.cyan('   - Borra la carpeta "sessions" manualmente'))
+                    console.log(chalk.cyan('   - Reinicia el bot\n'))
+                }
             }
 
             reconectando = false
@@ -221,9 +201,8 @@ class ManejadorConexion {
 
                 console.log(chalk.yellow(`🔌 Conexión cerrada. Razón: ${reason}`))
 
-                // ✅ CORRECCIÓN 2: MANEJAR 440 (Unauthorized) COMO UNA SESIÓN EXPIRADA/INVÁLIDA
-                if (reason === DisconnectReason.loggedOut || reason === 440) {
-                    console.log(chalk.red(`❌ Sesión cerrada (${reason}). Borrando y reiniciando para generar nuevo QR.`))
+                if (reason === DisconnectReason.loggedOut) {
+                    console.log(chalk.red('❌ Sesión cerrada. Borra la carpeta "sessions" y reinicia el bot'))
                     this.limpiarSesionCompleta()
                 } else {
                     console.log(chalk.yellow('🔄 Reconectando...'))
@@ -252,34 +231,9 @@ class ManejadorConexion {
                     // Filtrar mensajes antiguos
                     if (message.messageTimestamp && (Date.now()/1000 - message.messageTimestamp > 120)) continue
 
-                    // ========== VERIFICACIÓN MUTE (PRIMERO Y MÁS IMPORTANTE) ==========
-                    if (jid && jid.endsWith('@g.us')) {
-                        // ✅ VERIFICAR SI EL USUARIO ESTÁ SILENCIADO
-                        const usuarioMuteado = await this.manejadorMute.verificarMute(this.sock, message);
-
-                        // Si el usuario está silenciado, BLOQUEAR COMPLETAMENTE el mensaje
-                        if (usuarioMuteado) {
-                            const usuarioId = message.key.participant || message.key.remoteJid;
-                            Logger.info(`🚫 MENSAJE BLOQUEADO - Usuario silenciado: ${usuarioId}`);
-                            continue; // Saltar al siguiente mensaje, NO procesar más
-                        }
-                    }
-
-                    // ========== VERIFICACIÓN ANTILINK2 (UNIVERSAL) PRIMERO ==========
-                    if (jid.endsWith('@g.us')) {
-                        // ✅ Antilink2 (universal - bloquea TODOS los enlaces)
-                        if (this.manejadorAntilink2 && typeof this.manejadorAntilink2.verificarAntilink2 === 'function') {
-                            const enlaceBloqueado = await this.manejadorAntilink2.verificarAntilink2(this.sock, message);
-
-                            // Si antilink2 bloqueó el mensaje, NO verificar el antilink normal
-                            if (enlaceBloqueado) {
-                                continue; // Saltar al siguiente mensaje
-                            }
-                        }
-                    }
-
-                    // ========== VERIFICACIÓN ANTILINK NORMAL (SELECTIVO) ==========
+                    // ========== VERIFICACIÓN ANTILINK PRIMERO ==========
                     if (jid.endsWith('@g.us') && texto) {
+                        // ✅ VERIFICAR QUE manejadorSeguridad EXISTA ANTES DE USARLO
                         if (this.manejadorSeguridad && typeof this.manejadorSeguridad.verificarAntilink === 'function') {
                             await this.manejadorSeguridad.verificarAntilink(this.sock, message, jid, texto);
                         } else {
@@ -292,20 +246,10 @@ class ManejadorConexion {
                         await this.manejadorAntispam.verificarSpam(this.sock, message);
                     }
 
-                    // ✅ CONTAR ARCHIVOS AUTOMÁTICAMENTE (Esto se hace antes de procesar comandos)
+                    // ✅ NUEVO: CONTAR ARCHIVOS AUTOMÁTICAMENTE
                     if (jid.endsWith('@g.us') && !message.key.fromMe) {
                         await this.contarArchivos(message, jid);
                     }
-
-                    // ✅ CONTAR MENSAJES DE TEXTO (Se hace aquí si el mensaje no es un archivo)
-                    if (texto && texto.length > 0 && jid.endsWith('@g.us') && !message.key.fromMe) {
-                        const usuarioId = message.key.participant || message.key.remoteJid;
-                        const gestorGrupos = this.guardianBot?.gestorComandos?.obtenerGestorGrupos();
-                        if (gestorGrupos) {
-                           gestorGrupos.registrarMensaje(jid, usuarioId);
-                        }
-                    }
-
 
                     // ========== PROCESAR COMANDOS DESPUÉS ==========
                     if (!message.key.fromMe && message.message) {
@@ -342,12 +286,13 @@ class ManejadorConexion {
         this.sock.ev.on('presence.update', () => {})
     }
 
-    // ✅ MÉTODO PARA CONTAR ARCHIVOS (Corregido y optimizado)
+    // ✅ NUEVO: MÉTODO PARA CONTAR ARCHIVOS
     async contarArchivos(message, jid) {
         try {
             const usuarioId = message.key.participant || message.key.remoteJid;
-            const gestorGrupos = this.guardianBot?.gestorComandos?.obtenerGestorGrupos();
 
+            // Obtener gestor de grupos desde el bot principal
+            const gestorGrupos = this.guardianBot?.gestorComandos?.obtenerGestorGrupos();
             if (!gestorGrupos) {
                 Logger.debug('Gestor de grupos no disponible');
                 return;
@@ -363,10 +308,11 @@ class ManejadorConexion {
             } else if (message.message?.audioMessage) {
                 tipoArchivo = 'audios';
             } else if (message.message?.documentMessage) {
-                // Para documentos, solo contamos como 'documentos' si es algo legible
                 const docType = message.message.documentMessage.mimetype || '';
-                if (docType.includes('pdf') || docType.includes('word') || docType.includes('excel') || docType.includes('text') || docType.includes('application')) {
+                if (docType.includes('pdf') || docType.includes('word') || docType.includes('excel') || docType.includes('text')) {
                     tipoArchivo = 'documentos';
+                } else {
+                    tipoArchivo = 'otros';
                 }
             } else if (message.message?.stickerMessage) {
                 tipoArchivo = 'sticker';
@@ -379,8 +325,7 @@ class ManejadorConexion {
                 if (registrado) {
                     Logger.debug(`📁 Archivo registrado: ${usuarioId} - ${tipoArchivo}`);
                 } else if (tipoArchivo === 'sticker') {
-                    // Si el registro de sticker falla, es por límite diario
-                    // Aquí se puede añadir lógica para notificar al usuario, si lo deseas
+                    Logger.debug(`🚫 Sticker ignorado (límite alcanzado): ${usuarioId}`);
                 }
             }
 
@@ -406,7 +351,7 @@ class ManejadorConexion {
         }
     }
 
-    limpiarSesionCompleta(iniciarDespues = true) {
+    limpiarSesionCompleta() {
         try {
             if (fs.existsSync(SESSION_FOLDER)) {
                 fs.rmSync(SESSION_FOLDER, { recursive: true, force: true })
@@ -419,23 +364,19 @@ class ManejadorConexion {
 
         this.reconexionIntentos = 0
 
-        if (iniciarDespues) {
-            console.log(chalk.yellow('🔄 Reiniciando conexión...'))
-            setTimeout(() => this.iniciar(), 3000)
-        }
+        console.log(chalk.yellow('🔄 Reiniciando conexión...'))
+        setTimeout(() => this.iniciar(), 3000)
     }
 
     reconectar() {
         if (this.reconexionIntentos >= this.maxReconexionIntentos) {
-            console.log(chalk.red('❌ Máximo de intentos de reconexión alcanzado'))
-            console.log(chalk.yellow('🔄 Forzando limpieza de sesión y reinicio completo...'))
+            console.log(chalk.red('❌ Máximo de intentos alcanzado'))
+            console.log(chalk.yellow('🔄 Reiniciando completamente...'))
             this.limpiarSesionCompleta()
             return
         }
 
-        // ✅ CORRECCIÓN 1: Asegurar un delay mínimo para evitar el "flapping"
-        // Intentos 0: delay 1s, Intento 1: delay 2s, Intento 2: delay 4s...
-        const delay = Math.min(1000 * (2 ** this.reconexionIntentos), 10000) 
+        const delay = Math.min(2000 * this.reconexionIntentos, 10000)
         console.log(chalk.yellow(`🔄 Reconectando en ${delay/1000}s...`))
 
         setTimeout(() => this.iniciar(), delay)
@@ -465,24 +406,26 @@ class ManejadorConexion {
 
     // ✅ SOCKET VERIFICADO - EVITA CONNECTION CLOSED
     obtenerSocket() {
-        // Mejorar la estabilidad solo cuando el bot está conectado o intentando activamente
         if (!this.sock || !this.estaConectado) {
-            // No iniciar reconexión aquí para evitar spam de reconexión si ya está en el ciclo 'close'
-            Logger.warn('⚠️ Socket no disponible para comandos.')
+            Logger.warn('⚠️ Socket no disponible, reconectando...')
+            this.reconectarAutomatico()
             return null
         }
 
-        // Simplemente devolver el socket, la reconexión se maneja en 'connection.update' y 'iniciarHeartbeat'
-        return this.sock;
+        // Verificar si el socket sigue activo
+        try {
+            this.sock.sendPresenceUpdate('available')
+            return this.sock
+        } catch (error) {
+            Logger.error('❌ Socket inactivo:', error.message)
+            this.estaConectado = false
+            this.reconectarAutomatico()
+            return null
+        }
     }
 
     obtenerEstadoConexion() {
         return this.estaConectado && this.sock !== null
-    }
-
-    // ✅ OBTENER MANEJADOR MUTE (PARA DEBUGGING)
-    obtenerManejadorMute() {
-        return this.manejadorMute;
     }
 }
 

@@ -1,0 +1,37 @@
+{
+  "grupo_id": "120363404293329818@g.us",
+  "nombre": "Sin nombre",
+  "descripcion": "",
+  "fecha_creacion": "2025-11-27T22:22:02.678Z",
+  "fecha_actualizacion": "2025-11-27T22:25:10.594Z",
+  "configuraciones": {
+    "antilink": true,
+    "antibots": true,
+    "bienvenidas": true,
+    "despedidas": false
+  },
+  "estadisticas": {
+    "total_mensajes": 8,
+    "total_usuarios": 0,
+    "ultima_actividad": "2025-11-27T22:25:10.594Z"
+  },
+  "usuarios": {
+    "120363404293329818@g.us": {
+      "numero": "120363404293329818",
+      "mensajes_totales": 4,
+      "mensajes_semana": 0,
+      "ultimo_mensaje": "2025-11-27T22:23:47.923Z",
+      "primer_mensaje": "2025-11-27T22:22:02.679Z",
+      "es_admin": false
+    },
+    "20015168381136@lid": {
+      "numero": "20015168381136",
+      "mensajes_totales": 4,
+      "mensajes_semana": 0,
+      "ultimo_mensaje": "2025-11-27T22:25:10.594Z",
+      "primer_mensaje": "2025-11-27T22:23:49.283Z",
+      "es_admin": false
+    }
+  },
+  "administradores": []
+}

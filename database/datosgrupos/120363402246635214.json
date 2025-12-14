@@ -3,224 +3,528 @@
   "nombre": "꧁​𓊈🍃𝐊𝐚𝐫𝐛𝐨𝐭 𝐎𝐟𝐢𝐜𝐢𝐚𝐥🍃𓊉꧂",
   "descripcion": "​¡Bienvenidos a la comunidad oficial de Karbot!\n\n​Este es el espacio para usuarios y fanáticos del bot. Únete para usar sus comandos, recibir soporte y conocer las novedades.\n\n​🗃️ Reglas del Grupo\n\n​🚫 Respeto: Sé amable con todos. No se permiten insultos, spam o lenguaje ofensivo.\n\n​⚠️ No Spam: Evita la publicidad no autorizada y el envío de contenido masivo.\n\n​🤖 Uso del Bot: Para ver el menú de comandos, escribe .menu.\n\n​● Karbot - Funciones\n\n​🎵 Multimedia: Descargas de música y videos de YouTube, TikTok , etc.\n\n​🎮 Juegos: Variedad de juegos interactivos y de economía para el grupo.\n\n​⚙️ Administración: Herramientas para moderar el grupo.\n​● Contacto\n\n_*KARBOT ESTÁ EN CONSTANTE DESARROLLO*_\n\n​Para preguntas o soporte, puedes contactar al desarrollador directamente.\n\n​Hernández: wa.me/50496926150\n\nhttps://chat.whatsapp.com/JeKUpOxymP4F6faK3B2Jqb?mode=wwc",
   "fecha_creacion": "2025-11-27T01:50:09.619Z",
-  "fecha_actualizacion": "2025-12-13T21:11:50.210Z",
+  "fecha_actualizacion": "2025-12-01T16:29:51.979Z",
   "configuraciones": {
-    "antilink": false,
+    "antilink": true,
     "antibots": true,
     "bienvenidas": true,
     "despedidas": false,
-    "antispam": false
+    "antispam": true
   },
   "estadisticas": {
-    "total_mensajes": 2376,
-    "total_usuarios": 52,
-    "ultima_actividad": "2025-12-13T21:11:50.210Z"
+    "total_mensajes": 4576,
+    "total_usuarios": 53,
+    "ultima_actividad": "2025-12-01T16:29:51.979Z"
   },
   "usuarios": {
     "20015168381136@lid": {
       "numero": "20015168381136",
-      "mensajes_totales": 54,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-28T17:46:37.090Z",
-      "primer_mensaje": "2025-11-27T01:50:09.621Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T23:24:34.974Z",
+      "primer_archivo": "2025-11-27T01:50:09.621Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 130,
+      "mensajes_semana": 0
     },
     "138048973062239@lid": {
       "numero": "138048973062239",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T02:08:57.083Z",
+      "primer_archivo": "2025-11-27T01:56:43.478Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 19,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:08:57.083Z",
-      "primer_mensaje": "2025-11-27T01:56:43.478Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "176360400138424@lid": {
       "numero": "176360400138424",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T14:47:00.329Z",
+      "primer_archivo": "2025-11-27T01:56:56.369Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 5,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T14:47:00.329Z",
-      "primer_mensaje": "2025-11-27T01:56:56.369Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "96791768891525@lid": {
       "numero": "96791768891525",
-      "mensajes_totales": 3,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-12-13T21:11:50.210Z",
-      "primer_mensaje": "2025-11-27T01:59:54.473Z",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T22:13:18.471Z",
+      "primer_archivo": "2025-11-27T01:59:54.473Z",
       "es_admin": false,
-      "mensajes_texto": 2,
-      "total_mensajes": 2
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 9,
+      "mensajes_semana": 0
     },
     "205862731792516@lid": {
       "numero": "205862731792516",
-      "mensajes_totales": 2129,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T21:08:35.705Z",
-      "primer_mensaje": "2025-11-27T01:59:56.135Z",
-      "es_admin": true
+      "archivos": {
+        "imagenes": 0,
+        "videos": 1,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 1,
+      "ultimo_archivo": "2025-12-01T16:29:51.979Z",
+      "primer_archivo": "2025-11-27T01:59:56.135Z",
+      "es_admin": true,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 4206,
+      "mensajes_semana": 0
     },
     "101662194704633@lid": {
       "numero": "101662194704633",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T02:55:53.832Z",
+      "primer_archivo": "2025-11-27T02:06:00.282Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 14,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:55:53.832Z",
-      "primer_mensaje": "2025-11-27T02:06:00.282Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "231413106397396@lid": {
       "numero": "231413106397396",
-      "mensajes_totales": 31,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T21:07:58.813Z",
-      "primer_mensaje": "2025-11-27T02:07:55.652Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T21:59:29.002Z",
+      "primer_archivo": "2025-11-27T02:07:55.652Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 90,
+      "mensajes_semana": 0
     },
     "232551457288237@lid": {
       "numero": "232551457288237",
-      "mensajes_totales": 1,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:09:02.335Z",
-      "primer_mensaje": "2025-11-27T02:09:02.335Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T21:51:49.692Z",
+      "primer_archivo": "2025-11-27T02:09:02.335Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 2,
+      "mensajes_semana": 0
     },
     "181733035102340@lid": {
       "numero": "181733035102340",
-      "mensajes_totales": 3,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:31:59.524Z",
-      "primer_mensaje": "2025-11-27T02:31:08.596Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T22:34:55.573Z",
+      "primer_archivo": "2025-11-27T02:31:08.596Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 10,
+      "mensajes_semana": 0
     },
     "120363402246635214@g.us": {
       "numero": "120363402246635214",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T14:11:33.930Z",
+      "primer_archivo": "2025-11-27T02:35:17.129Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 2,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T14:11:33.930Z",
-      "primer_mensaje": "2025-11-27T02:35:17.129Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "275298931228879@lid": {
       "numero": "275298931228879",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T02:47:16.868Z",
+      "primer_archivo": "2025-11-27T02:47:13.727Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 2,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T02:47:16.868Z",
-      "primer_mensaje": "2025-11-27T02:47:13.727Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "19924370092134@lid": {
       "numero": "19924370092134",
-      "mensajes_totales": 22,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T18:56:54.588Z",
-      "primer_mensaje": "2025-11-27T02:47:31.658Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T23:07:57.528Z",
+      "primer_archivo": "2025-11-27T02:47:31.658Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 30,
+      "mensajes_semana": 0
     },
     "209701778280529@lid": {
       "numero": "209701778280529",
-      "mensajes_totales": 9,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-12-13T20:02:24.775Z",
-      "primer_mensaje": "2025-11-27T02:54:48.054Z",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T03:01:12.628Z",
+      "primer_archivo": "2025-11-27T02:54:48.054Z",
       "es_admin": false,
-      "mensajes_texto": 11,
-      "total_mensajes": 11
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 9,
+      "mensajes_semana": 0
     },
     "49151706427450@lid": {
       "numero": "49151706427450",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T03:03:43.711Z",
+      "primer_archivo": "2025-11-27T03:03:43.711Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 1,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T03:03:43.711Z",
-      "primer_mensaje": "2025-11-27T03:03:43.711Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "7464837730466@lid": {
       "numero": "7464837730466",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T13:13:36.667Z",
+      "primer_archivo": "2025-11-27T13:13:34.774Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 2,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T13:13:36.667Z",
-      "primer_mensaje": "2025-11-27T13:13:34.774Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "169931052216571@lid": {
       "numero": "169931052216571",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T13:17:41.767Z",
+      "primer_archivo": "2025-11-27T13:17:41.767Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 1,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T13:17:41.767Z",
-      "primer_mensaje": "2025-11-27T13:17:41.767Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "186861645496397@lid": {
       "numero": "186861645496397",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T18:08:45.839Z",
+      "primer_archivo": "2025-11-27T18:08:45.839Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 1,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T18:08:45.839Z",
-      "primer_mensaje": "2025-11-27T18:08:45.839Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "29902166327441@lid": {
       "numero": "29902166327441",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T20:44:03.317Z",
+      "primer_archivo": "2025-11-27T18:54:06.658Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 13,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T20:44:03.317Z",
-      "primer_mensaje": "2025-11-27T18:54:06.658Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "238573085319268@lid": {
       "numero": "238573085319268",
-      "mensajes_totales": 3,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T19:25:13.739Z",
-      "primer_mensaje": "2025-11-27T18:57:45.444Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T23:18:13.407Z",
+      "primer_archivo": "2025-11-27T18:57:45.444Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 4,
+      "mensajes_semana": 0
     },
     "13362264031304@lid": {
       "numero": "13362264031304",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T19:23:33.506Z",
+      "primer_archivo": "2025-11-27T19:21:00.006Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
       "mensajes_totales": 4,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T19:23:33.506Z",
-      "primer_mensaje": "2025-11-27T19:21:00.006Z",
-      "es_admin": false
+      "mensajes_semana": 0
     },
     "22742271324201@lid": {
       "numero": "22742271324201",
-      "mensajes_totales": 2,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T19:40:34.090Z",
-      "primer_mensaje": "2025-11-27T19:33:43.960Z",
-      "es_admin": false
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T21:43:38.183Z",
+      "primer_archivo": "2025-11-27T19:33:43.960Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 5,
+      "mensajes_semana": 0
     },
     "171317672329241@lid": {
       "numero": "171317672329241",
-      "mensajes_totales": 2,
-      "mensajes_semana": 0,
-      "ultimo_mensaje": "2025-11-27T21:08:31.270Z",
-      "primer_mensaje": "2025-11-27T21:07:59.981Z",
-      "es_admin": false
-    },
-    "103994714288225@lid": {
-      "numero": "103994714288225",
       "archivos": {
-        "imagenes": 11,
-        "videos": 2,
-        "audios": 2,
-        "documentos": 1,
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
         "stickers": 0,
-        "otros": 13
+        "otros": 0
       },
-      "total_archivos": 29,
-      "mensajes_texto": 11,
-      "total_mensajes": 40,
-      "ultimo_mensaje": "2025-12-13T21:10:16.293Z",
-      "primer_mensaje": "2025-12-13T19:57:10.639Z",
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T23:30:44.015Z",
+      "primer_archivo": "2025-11-27T21:17:55.544Z",
       "es_admin": false,
       "stickers_diarios": {
-        "fecha": "Sat Dec 13 2025",
+        "fecha": "Mon Dec 01 2025",
         "contador": 0
-      }
+      },
+      "mensajes_totales": 13,
+      "mensajes_semana": 0
+    },
+    "163668318757097@lid": {
+      "numero": "163668318757097",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T21:18:15.784Z",
+      "primer_archivo": "2025-11-27T21:17:58.384Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 2,
+      "mensajes_semana": 0
+    },
+    "123863132299383@lid": {
+      "numero": "123863132299383",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 0
+      },
+      "total_archivos": 0,
+      "ultimo_archivo": "2025-11-27T23:09:34.824Z",
+      "primer_archivo": "2025-11-27T23:09:34.824Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Mon Dec 01 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 1,
+      "mensajes_semana": 0
     }
   },
   "administradores": [
     "20015168381136@lid",
+    "29902166327441@lid",
     "205862731792516@lid"
   ]
 }
