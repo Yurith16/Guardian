@@ -3,7 +3,7 @@
   "nombre": "GRUPO GUARDIAN BOT",
   "descripcion": "GRUPO DE ACTUALIZACIONES DE GUARDIAN BOT",
   "fecha_creacion": "2025-11-27T22:40:10.793Z",
-  "fecha_actualizacion": "2025-11-29T04:07:19.739Z",
+  "fecha_actualizacion": "2025-12-14T01:07:26.568Z",
   "configuraciones": {
     "antilink": true,
     "antibots": true,
@@ -12,9 +12,9 @@
     "antispam": true
   },
   "estadisticas": {
-    "total_mensajes": 129,
+    "total_mensajes": 164,
     "total_usuarios": 3,
-    "ultima_actividad": "2025-11-29T04:07:19.739Z"
+    "ultima_actividad": "2025-12-14T01:07:26.568Z"
   },
   "usuarios": {
     "120363423283105892@g.us": {
@@ -99,6 +99,27 @@
         "contador": 0
       },
       "mensajes_totales": 45,
+      "mensajes_semana": 0
+    },
+    "97144291758246@lid": {
+      "numero": "97144291758246",
+      "archivos": {
+        "imagenes": 0,
+        "videos": 0,
+        "audios": 0,
+        "documentos": 0,
+        "stickers": 0,
+        "otros": 35
+      },
+      "total_archivos": 35,
+      "ultimo_archivo": "2025-12-14T01:07:26.568Z",
+      "primer_archivo": "2025-12-14T01:07:26.568Z",
+      "es_admin": false,
+      "stickers_diarios": {
+        "fecha": "Sun Dec 14 2025",
+        "contador": 0
+      },
+      "mensajes_totales": 0,
       "mensajes_semana": 0
     }
   },
